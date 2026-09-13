@@ -1,0 +1,25 @@
+services:
+  dashboard:
+    build:
+      context: ./dashboard
+    container_name: shc-monitor
+    restart: unless-stopped
+    ports:
+      - "${SHC_DASHBOARD_BIND:-127.0.0.1}:${SHC_DASHBOARD_PORT:-8085}:8000"
+    environment:
+      SHC_COLLECTOR_SOCKET: /run/shc-monitor/collector.sock
+      SHC_COLLECTOR_TOKEN_FILE: /run/secrets/collector_token
+    volumes:
+      - "${SHC_RUNTIME_DIR:-/run/shc-monitor}:/run/shc-monitor:ro"
+      - "${SHC_COLLECTOR_TOKEN_FILE:-/etc/shc-monitor/collector-token}:/run/secrets/collector_token:ro"
+      - "${SHC_DATA_DIR:-/var/lib/shc-monitor}:/var/lib/shc-monitor"
+    group_add:
+      - "${SHC_COLLECTOR_GROUP_ID:-1000}"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+

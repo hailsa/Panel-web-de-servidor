@@ -1,0 +1,43 @@
+server:
+  timezone: America/Argentina/Buenos_Aires
+  zerotier_interface: zt-example0
+  public_ip_lookup: false
+
+collector:
+  socket_path: /run/shc-monitor/collector.sock
+  token_file: /etc/shc-monitor/collector-token
+
+dashboard:
+  data_directory: /var/lib/shc-monitor
+  behind_https_proxy: true
+
+refresh:
+  fast_seconds: 2
+  normal_seconds: 15
+  raid_seconds: 30
+  smart_seconds: 300
+  versions_seconds: 300
+
+thresholds:
+  cpu_percent:
+    warning: 80
+    critical: 95
+  ram_percent:
+    warning: 80
+    critical: 95
+  filesystem_percent:
+    warning: 80
+    critical: 95
+  cpu_temperature_c:
+    warning: 75
+    critical: 85
+
+metrics:
+  sample_seconds: 10
+  retention_hours: 24
+
+alerts:
+  deduplication_fields:
+    - source
+    - event_type
+    - resource
