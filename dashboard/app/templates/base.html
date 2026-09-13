@@ -11,9 +11,9 @@
   <aside class="sidebar">
     <img class="logo" src="/static/img/logo.png" alt="Logo SHC">
     <nav>
-      <a class="{{ 'active' if active == 'dashboard' else '' }}" href="/">⌘ <span>Dashboard</span></a>
-      <a class="{{ 'active' if active == 'users' else '' }}" href="/usuarios">♙ <span>Usuarios</span></a>
-      <a class="{{ 'active' if active == 'status' else '' }}" href="/estado-servidor">▣ <span>Estado del Servidor</span></a>
+      <a class="{{ 'active' if active == 'dashboard' else '' }}" href="/"><svg><use href="/static/img/icons.svg#dashboard"></use></svg><span>Dashboard</span></a>
+      <a class="{{ 'active' if active == 'users' else '' }}" href="/usuarios"><svg><use href="/static/img/icons.svg#users"></use></svg><span>Usuarios</span></a>
+      <a class="{{ 'active' if active == 'status' else '' }}" href="/estado-servidor"><svg><use href="/static/img/icons.svg#server"></use></svg><span>Estado del Servidor</span></a>
     </nav>
     <div class="server-id"><small>SERVIDOR</small><strong id="side-host">Conectando…</strong><span>SHC {{ version }}</span></div>
   </aside>

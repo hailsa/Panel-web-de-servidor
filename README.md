@@ -2,9 +2,9 @@
 
 SHC es un panel informativo, de bajo consumo y exclusivamente de lectura para un servidor Debian doméstico. La interfaz seguirá la identidad visual oscura/cyber suministrada y no ofrecerá acciones administrativas.
 
-## Estado del proyecto · v0.2.0
+## Estado del proyecto · v0.3.0
 
-La versión actual está pensada para publicarse mediante Apache en una URL interna como `https://monitor.example.internal/`. Incluye autenticación HTTP, métricas reales con actualización cada dos segundos, inventario de usuarios, estado detallado de hardware, discos, RAID, sensores, servicios y contenedores, collector por socket Unix, Docker aislado y HTTPS.
+La versión actual está pensada para publicarse mediante Apache en una URL interna como `https://monitor.example.internal/`. Incluye autenticación HTTP, métricas reales con actualización cada dos segundos, gráficos y sparklines, Top 5 de procesos, inventario de usuarios, estado detallado de hardware, discos, RAID, sensores, servicios y contenedores, collector por socket Unix, Docker aislado y HTTPS.
 
 El certificado debe incluir como SAN el hostname o las direcciones privadas elegidas durante el despliegue. Con un certificado autofirmado, el navegador mostrará una advertencia hasta confiar en la CA local correspondiente.
 

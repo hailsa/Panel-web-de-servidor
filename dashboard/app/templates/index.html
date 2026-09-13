@@ -1,22 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="content">
-  <div class="heading"><h1>Dashboard</h1><p>Resumen general del estado del servidor</p></div>
+<section class="content dashboard-content">
+  <div class="heading heading-with-icon">
+    <span class="heading-icon"><svg><use href="/static/img/icons.svg#dashboard"></use></svg></span>
+    <div><h1>Dashboard</h1><p>Resumen general del estado del servidor</p></div>
+  </div>
   <div id="error" class="error hidden"></div>
   <div class="metric-grid">
-    <article class="metric green"><span>CPU</span><strong id="cpu">—</strong><small id="cpu-extra">—</small></article>
-    <article class="metric blue"><span>RAM</span><strong id="ram">—</strong><small id="ram-extra">—</small></article>
-    <article class="metric green"><span>Almacenamiento</span><strong id="storage">—</strong><small id="storage-extra">—</small></article>
-    <article class="metric blue"><span>Red</span><strong id="network">—</strong><small>Acumulado desde el arranque</small></article>
-    <article class="metric green"><span>Temperatura</span><strong id="temperature">—</strong><small>CPU Package</small></article>
+    <article class="metric green"><div class="metric-copy"><span class="metric-icon"><svg><use href="/static/img/icons.svg#cpu"></use></svg></span><div><span>CPU</span><strong id="cpu">—</strong><small id="cpu-extra">—</small></div></div><svg class="sparkline" viewBox="0 0 100 36" preserveAspectRatio="none"><polyline id="cpu-spark"/></svg></article>
+    <article class="metric blue"><div class="metric-copy"><span class="metric-icon"><svg><use href="/static/img/icons.svg#memory"></use></svg></span><div><span>RAM</span><strong id="ram">—</strong><small id="ram-extra">—</small></div></div><svg class="sparkline" viewBox="0 0 100 36" preserveAspectRatio="none"><polyline id="ram-spark"/></svg></article>
+    <article class="metric green"><div class="metric-copy"><span class="metric-icon"><svg><use href="/static/img/icons.svg#disk"></use></svg></span><div><span>Almacenamiento</span><strong id="storage">—</strong><small id="storage-extra">—</small></div></div><svg class="sparkline" viewBox="0 0 100 36" preserveAspectRatio="none"><polyline id="storage-spark"/></svg></article>
+    <article class="metric blue"><div class="metric-copy"><span class="metric-icon"><svg><use href="/static/img/icons.svg#network"></use></svg></span><div><span>Red</span><strong id="network">—</strong><small>Tráfico actual</small></div></div><svg class="sparkline" viewBox="0 0 100 36" preserveAspectRatio="none"><polyline id="network-spark"/></svg></article>
+    <article class="metric green"><div class="metric-copy"><span class="metric-icon"><svg><use href="/static/img/icons.svg#temperature"></use></svg></span><div><span>Temperatura</span><strong id="temperature">—</strong><small>CPU Package</small></div></div><svg class="sparkline" viewBox="0 0 100 36" preserveAspectRatio="none"><polyline id="temperature-spark"/></svg></article>
   </div>
-  <div class="layout">
-    <article class="card system"><h2>ⓘ Información del Sistema</h2><dl id="system-info"></dl></article>
-    <article class="card"><h2>◉ Servicios</h2><div id="services"></div></article>
-    <article class="card wide"><h2>▰ Discos</h2><div id="disks"></div></article>
-    <article class="card"><h2>⌘ Puertos Abiertos</h2><div class="table-wrap"><table><thead><tr><th>Puerto</th><th>Protocolo</th><th>Dirección</th></tr></thead><tbody id="ports"></tbody></table></div></article>
-    <article class="card"><h2>⬡ Contenedores Docker</h2><div id="containers"></div></article>
-    <article class="card"><h2>♨ Sensores</h2><div id="sensors"></div></article>
+  <div class="dashboard-layout">
+    <article class="card system-card"><h2><svg><use href="/static/img/icons.svg#info"></use></svg>Información del Sistema</h2><dl id="system-info"></dl></article>
+    <article class="card processes-card"><h2><svg><use href="/static/img/icons.svg#processes"></use></svg>Procesos (Top 5)</h2><div class="table-wrap"><table class="compact-table"><thead><tr><th>PID</th><th>Nombre</th><th>CPU</th><th>RAM</th></tr></thead><tbody id="processes"><tr><td colspan="4" class="empty compact-empty">Cargando…</td></tr></tbody></table></div></article>
+    <article class="card services-card"><h2><svg><use href="/static/img/icons.svg#services"></use></svg>Servicios</h2><div id="services"></div></article>
+    <article class="card resource-card"><div class="card-title-row"><h2><svg><use href="/static/img/icons.svg#chart"></use></svg>Uso de Recursos</h2><span id="chart-range" class="muted">Historial en este navegador</span></div><div class="chart-legend"><span class="cpu-line">CPU</span><span class="ram-line">RAM</span><span class="disk-line">Disco</span></div><div class="chart-wrap"><canvas id="resource-chart" aria-label="Gráfico de uso de CPU, RAM y disco"></canvas></div></article>
+    <article class="card disks-card"><h2><svg><use href="/static/img/icons.svg#disk"></use></svg>Discos</h2><div id="disks"></div></article>
+    <article class="card ports-card"><h2><svg><use href="/static/img/icons.svg#ports"></use></svg>Puertos Abiertos</h2><div class="table-wrap"><table><thead><tr><th>Puerto</th><th>Protocolo</th><th>Dirección</th></tr></thead><tbody id="ports"></tbody></table></div></article>
+    <article class="card containers-card"><h2><svg><use href="/static/img/icons.svg#docker"></use></svg>Contenedores Docker</h2><div id="containers"></div></article>
+    <article class="card sensors-card"><h2><svg><use href="/static/img/icons.svg#sensors"></use></svg>Sensores</h2><div id="sensors"></div></article>
   </div>
 </section>
 {% endblock %}

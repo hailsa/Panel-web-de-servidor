@@ -4,6 +4,7 @@ SHC utiliza versionado semántico y tags anotados de Git.
 
 - `v0.1.0`: primera versión operativa del dashboard.
 - `v0.2.0`: navegación, inventario de usuarios y estado detallado del servidor.
+- `v0.3.0`: gráficos, Top 5 de procesos, iconografía SVG y reorganización visual.
 
 Para cada nueva versión:
 

@@ -7,12 +7,16 @@ import os
 import platform
 import socket
 import subprocess
+import threading
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import psutil
+
+_sample_lock = threading.Lock()
+_last_network_sample: tuple[float, int, int] | None = None
 
 
 def _run(command: list[str], timeout: float = 3.0) -> tuple[bool, str]:
@@ -142,6 +146,39 @@ def _docker() -> dict[str, Any]:
     return {"available": True, "containers": containers}
 
 
+def _network_rates(net: Any) -> tuple[float, float]:
+    global _last_network_sample
+    now = time.monotonic()
+    with _sample_lock:
+        previous = _last_network_sample
+        _last_network_sample = (now, net.bytes_sent, net.bytes_recv)
+    if previous is None:
+        return 0.0, 0.0
+    elapsed = max(0.001, now - previous[0])
+    sent = max(0, net.bytes_sent - previous[1]) / elapsed
+    received = max(0, net.bytes_recv - previous[2]) / elapsed
+    return round(sent, 1), round(received, 1)
+
+
+def _top_processes(limit: int = 5) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    with _sample_lock:
+        for process in psutil.process_iter(["pid", "name", "memory_percent"]):
+            try:
+                rows.append(
+                    {
+                        "pid": process.pid,
+                        "name": process.info.get("name") or "desconocido",
+                        "cpu_percent": round(process.cpu_percent(interval=None), 1),
+                        "memory_percent": round(float(process.info.get("memory_percent") or 0), 1),
+                    }
+                )
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+    rows.sort(key=lambda item: (item["cpu_percent"], item["memory_percent"]), reverse=True)
+    return rows[:limit]
+
+
 def _ports() -> list[dict[str, Any]]:
     ok, output = _run(["ss", "-H", "-lntup"], timeout=3)
     if not ok:
@@ -175,6 +212,7 @@ def collect_snapshot() -> dict[str, Any]:
     uptime = max(0, int(time.time() - psutil.boot_time()))
     frequencies = psutil.cpu_freq()
     net = psutil.net_io_counters()
+    bytes_sent_per_second, bytes_received_per_second = _network_rates(net)
     temperatures = _temperatures()
     cpu_package = next(
         (item for item in temperatures if item["source"] == "coretemp" and "Package" in item["label"]),
@@ -213,7 +251,10 @@ def collect_snapshot() -> dict[str, Any]:
             "bytes_received": net.bytes_recv,
             "errors_in": net.errin,
             "errors_out": net.errout,
+            "bytes_sent_per_second": bytes_sent_per_second,
+            "bytes_received_per_second": bytes_received_per_second,
         },
+        "processes": _top_processes(),
         "filesystems": _filesystems(),
         "temperatures": temperatures,
         "fans": _fans(),
@@ -223,4 +264,3 @@ def collect_snapshot() -> dict[str, Any]:
         "virtual_machines": {"available": False, "reason": "No se detectó libvirt", "machines": []},
         "smart": {"available": False, "reason": "smartmontools no está instalado"},
     }
-
