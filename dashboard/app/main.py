@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
+APP_VERSION = "v0.2.0"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -27,16 +28,25 @@ def health() -> dict[str, str]:
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse(request=request, name="index.html", context={"active": "dashboard", "version": APP_VERSION})
 
 
-@app.get("/api/snapshot")
-async def snapshot() -> JSONResponse:
+@app.get("/usuarios", response_class=HTMLResponse)
+def users_page(request: Request):
+    return templates.TemplateResponse(request=request, name="users.html", context={"active": "users", "version": APP_VERSION})
+
+
+@app.get("/estado-servidor", response_class=HTMLResponse)
+def server_status_page(request: Request):
+    return templates.TemplateResponse(request=request, name="server_status.html", context={"active": "status", "version": APP_VERSION})
+
+
+async def _collector_get(path: str) -> JSONResponse:
     try:
         token = TOKEN_FILE.read_text(encoding="utf-8").strip()
         transport = httpx.AsyncHTTPTransport(uds=SOCKET_PATH)
         async with httpx.AsyncClient(transport=transport, base_url="http://collector", timeout=8) as client:
-            response = await client.get("/v1/snapshot", headers={"Authorization": f"Bearer {token}"})
+            response = await client.get(path, headers={"Authorization": f"Bearer {token}"})
             response.raise_for_status()
             return JSONResponse(response.json())
     except Exception as exc:
@@ -45,3 +55,17 @@ async def snapshot() -> JSONResponse:
             status_code=503,
         )
 
+
+@app.get("/api/snapshot")
+async def snapshot() -> JSONResponse:
+    return await _collector_get("/v1/snapshot")
+
+
+@app.get("/api/users")
+async def users() -> JSONResponse:
+    return await _collector_get("/v1/users")
+
+
+@app.get("/api/server-status")
+async def server_status() -> JSONResponse:
+    return await _collector_get("/v1/server-status")

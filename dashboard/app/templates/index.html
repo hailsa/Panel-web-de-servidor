@@ -1,55 +1,23 @@
-<!doctype html>
-<html lang="es" data-theme="dark">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark light">
-  <title>SHC · Monitor de Servidor</title>
-  <link rel="stylesheet" href="/static/css/app.css">
-</head>
-<body>
-  <aside class="sidebar">
-    <img class="logo" src="/static/img/logo.png" alt="Logo SHC">
-    <nav>
-      <a class="active" href="#dashboard">⌘ <span>Dashboard</span></a>
-      <a href="#usuarios">♙ <span>Usuarios</span></a>
-      <a href="#estado">▣ <span>Estado del Servidor</span></a>
-    </nav>
-    <div class="server-id"><small>SERVIDOR</small><strong id="side-host">Conectando…</strong><span>SHC v0.1.0</span></div>
-  </aside>
-
-  <main>
-    <header class="topbar">
-      <button id="menu" aria-label="Abrir menú">☰</button>
-      <div class="online"><i></i><span id="server-state">Conectando…</span></div>
-      <span id="uptime" class="pill">—</span>
-      <button id="theme" aria-label="Cambiar tema">☾</button>
-      <time id="clock"></time>
-    </header>
-
-    <section id="dashboard" class="content">
-      <div class="heading"><h1>Dashboard</h1><p>Resumen general del estado del servidor</p></div>
-      <div id="error" class="error hidden"></div>
-
-      <div class="metric-grid">
-        <article class="metric green"><span>CPU</span><strong id="cpu">—</strong><small id="cpu-extra">—</small></article>
-        <article class="metric blue"><span>RAM</span><strong id="ram">—</strong><small id="ram-extra">—</small></article>
-        <article class="metric green"><span>Almacenamiento</span><strong id="storage">—</strong><small id="storage-extra">—</small></article>
-        <article class="metric blue"><span>Red</span><strong id="network">—</strong><small>Acumulado desde el arranque</small></article>
-        <article class="metric green"><span>Temperatura</span><strong id="temperature">—</strong><small>CPU Package</small></article>
-      </div>
-
-      <div class="layout">
-        <article class="card system"><h2>ⓘ Información del Sistema</h2><dl id="system-info"></dl></article>
-        <article class="card"><h2>◉ Servicios</h2><div id="services"></div></article>
-        <article class="card wide"><h2>▰ Discos</h2><div id="disks"></div></article>
-        <article class="card"><h2>⌘ Puertos Abiertos</h2><div class="table-wrap"><table><thead><tr><th>Puerto</th><th>Protocolo</th><th>Dirección</th></tr></thead><tbody id="ports"></tbody></table></div></article>
-        <article class="card"><h2>⬡ Contenedores Docker</h2><div id="containers"></div></article>
-        <article class="card"><h2>♨ Sensores</h2><div id="sensors"></div></article>
-      </div>
-    </section>
-  </main>
-  <script src="/static/js/app.js"></script>
-</body>
-</html>
-
+{% extends "base.html" %}
+{% block content %}
+<section class="content">
+  <div class="heading"><h1>Dashboard</h1><p>Resumen general del estado del servidor</p></div>
+  <div id="error" class="error hidden"></div>
+  <div class="metric-grid">
+    <article class="metric green"><span>CPU</span><strong id="cpu">—</strong><small id="cpu-extra">—</small></article>
+    <article class="metric blue"><span>RAM</span><strong id="ram">—</strong><small id="ram-extra">—</small></article>
+    <article class="metric green"><span>Almacenamiento</span><strong id="storage">—</strong><small id="storage-extra">—</small></article>
+    <article class="metric blue"><span>Red</span><strong id="network">—</strong><small>Acumulado desde el arranque</small></article>
+    <article class="metric green"><span>Temperatura</span><strong id="temperature">—</strong><small>CPU Package</small></article>
+  </div>
+  <div class="layout">
+    <article class="card system"><h2>ⓘ Información del Sistema</h2><dl id="system-info"></dl></article>
+    <article class="card"><h2>◉ Servicios</h2><div id="services"></div></article>
+    <article class="card wide"><h2>▰ Discos</h2><div id="disks"></div></article>
+    <article class="card"><h2>⌘ Puertos Abiertos</h2><div class="table-wrap"><table><thead><tr><th>Puerto</th><th>Protocolo</th><th>Dirección</th></tr></thead><tbody id="ports"></tbody></table></div></article>
+    <article class="card"><h2>⬡ Contenedores Docker</h2><div id="containers"></div></article>
+    <article class="card"><h2>♨ Sensores</h2><div id="sensors"></div></article>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/app.js"></script>{% endblock %}

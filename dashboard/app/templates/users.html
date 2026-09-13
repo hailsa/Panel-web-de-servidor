@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Usuarios · SHC Monitor{% endblock %}
+{% block content %}
+<section class="content">
+  <div class="heading"><h1>Usuarios</h1><p>Cuentas locales del servidor, grupos y nivel de acceso</p></div>
+  <div id="error" class="error hidden"></div>
+  <div class="toolbar card">
+    <label class="search"><span>⌕</span><input id="user-search" type="search" placeholder="Buscar usuario, grupo o rol…" autocomplete="off"></label>
+    <div class="filters" role="group" aria-label="Filtrar usuarios">
+      <button class="filter active" data-filter="all">Todos <b id="count-all">0</b></button>
+      <button class="filter" data-filter="people">Personas <b id="count-people">0</b></button>
+      <button class="filter" data-filter="system">Sistema <b id="count-system">0</b></button>
+    </div>
+  </div>
+  <article class="card users-card">
+    <div class="table-wrap">
+      <table class="users-table">
+        <thead><tr><th>Usuario</th><th>UID</th><th>Grupo principal</th><th>Grupo(s)</th><th>Rol</th><th>Shell</th><th>Home</th><th>Último acceso</th><th>Estado</th></tr></thead>
+        <tbody id="users-body"><tr><td colspan="9" class="empty">Cargando usuarios…</td></tr></tbody>
+      </table>
+    </div>
+    <footer class="card-footer"><span id="users-summary">—</span><span>Inventario de sólo lectura · actualización cada 30 s</span></footer>
+  </article>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/users.js"></script>{% endblock %}

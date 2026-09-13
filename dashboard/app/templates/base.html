@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>{% block title %}SHC · Monitor de Servidor{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <img class="logo" src="/static/img/logo.png" alt="Logo SHC">
+    <nav>
+      <a class="{{ 'active' if active == 'dashboard' else '' }}" href="/">⌘ <span>Dashboard</span></a>
+      <a class="{{ 'active' if active == 'users' else '' }}" href="/usuarios">♙ <span>Usuarios</span></a>
+      <a class="{{ 'active' if active == 'status' else '' }}" href="/estado-servidor">▣ <span>Estado del Servidor</span></a>
+    </nav>
+    <div class="server-id"><small>SERVIDOR</small><strong id="side-host">Conectando…</strong><span>SHC {{ version }}</span></div>
+  </aside>
+  <main>
+    <header class="topbar">
+      <button id="menu" aria-label="Abrir menú">☰</button>
+      <div class="online"><i></i><span id="server-state">Conectando…</span></div>
+      <span id="uptime" class="pill">—</span>
+      <button id="theme" aria-label="Cambiar tema">☾</button>
+      <time id="clock"></time>
+    </header>
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/js/base.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

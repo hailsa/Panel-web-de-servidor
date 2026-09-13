@@ -2,9 +2,9 @@
 
 SHC es un panel informativo, de bajo consumo y exclusivamente de lectura para un servidor Debian doméstico. La interfaz seguirá la identidad visual oscura/cyber suministrada y no ofrecerá acciones administrativas.
 
-## Estado del proyecto
+## Estado del proyecto · v0.2.0
 
-La primera versión operativa se publica mediante Apache en una URL interna como `https://monitor.example.internal/`. Incluye autenticación HTTP, métricas reales, collector por socket Unix, Docker aislado y HTTPS.
+La versión actual está pensada para publicarse mediante Apache en una URL interna como `https://monitor.example.internal/`. Incluye autenticación HTTP, métricas reales con actualización cada dos segundos, inventario de usuarios, estado detallado de hardware, discos, RAID, sensores, servicios y contenedores, collector por socket Unix, Docker aislado y HTTPS.
 
 El certificado debe incluir como SAN el hostname o las direcciones privadas elegidas durante el despliegue. Con un certificado autofirmado, el navegador mostrará una advertencia hasta confiar en la CA local correspondiente.
 
@@ -71,6 +71,8 @@ tests/        Pruebas automatizadas
 - [Arquitectura](docs/architecture.md)
 - [Modelo de seguridad](docs/security.md)
 - [Auditoría inicial](docs/audit-2026-09-12.md)
+- [Despliegue seguro](docs/deployment.md)
+- [Proceso de versiones](docs/releases/README.md)
 
 ## Operación actual
 
@@ -87,4 +89,3 @@ Para cambiar la contraseña web de forma interactiva:
 ```bash
 sudo htpasswd -B /etc/shc-monitor/htpasswd USUARIO
 ```
-

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Estado del Servidor · SHC Monitor{% endblock %}
+{% block content %}
+<section class="content">
+  <div class="heading"><h1>Estado del Servidor</h1><p>Hardware, almacenamiento, sensores y servicios en detalle</p></div>
+  <div id="error" class="error hidden"></div>
+  <div class="status-metrics">
+    <article class="metric green"><span>Temperatura CPU</span><strong id="status-cpu-temp">—</strong><small id="status-cpu-health">—</small></article>
+    <article class="metric blue"><span>Temperatura Sistema</span><strong id="status-system-temp">—</strong><small>Sensor de placa / ACPI</small></article>
+    <article class="metric amber"><span>Consumo energético</span><strong>No disponible</strong><small>Sin telemetría compatible</small></article>
+    <article class="metric violet"><span>Voltaje</span><strong id="status-voltage">—</strong><small id="status-voltage-label">Sensor de placa</small></article>
+  </div>
+  <div class="status-layout">
+    <article class="card span-2"><h2>▰ Salud de Discos</h2><div id="physical-disks"></div></article>
+    <article class="card"><h2>⛁ Estado de RAID</h2><div id="raid-detail"></div></article>
+    <article class="card"><h2>♨ Sensores del Sistema</h2><div id="sensor-detail"></div></article>
+    <article class="card"><h2>◫ Información de Hardware</h2><dl id="hardware-detail"></dl></article>
+    <article class="card"><h2>▣ Servicios</h2><div id="service-detail"></div></article>
+    <article class="card"><h2>⬡ Contenedores Docker</h2><div id="docker-detail"></div></article>
+    <article class="card"><h2>▤ Máquinas Virtuales</h2><div id="vm-detail"></div></article>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/server_status.js"></script>{% endblock %}
