@@ -23,7 +23,7 @@ while [ ! -S "$socket" ]; do
     exit 1
   fi
   attempt=$((attempt + 1))
-  if [ "$attempt" -ge 100 ]; then
+  if [ "$attempt" -ge 600 ]; then
     echo "collector socket was not created" >&2
     exit 1
   fi

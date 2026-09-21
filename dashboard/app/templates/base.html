@@ -8,7 +8,8 @@
   <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body>
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
+    <button id="sidebar-close" class="sidebar-close" aria-label="Cerrar menú">×</button>
     <img class="logo" src="/static/img/logo.png" alt="Logo SHC">
     <nav>
       <a class="{{ 'active' if active == 'dashboard' else '' }}" href="/"><svg><use href="/static/img/icons.svg#dashboard"></use></svg><span>Dashboard</span></a>
@@ -17,16 +18,38 @@
     </nav>
     <div class="server-id"><small>SERVIDOR</small><strong id="side-host">Conectando…</strong><span>SHC {{ version }}</span></div>
   </aside>
+  <button id="sidebar-backdrop" class="sidebar-backdrop" aria-label="Cerrar menú"></button>
   <main>
     <header class="topbar">
-      <button id="menu" aria-label="Abrir menú">☰</button>
+      <button id="menu" aria-label="Abrir o contraer menú" aria-expanded="false">☰</button>
       <div class="online"><i></i><span id="server-state">Conectando…</span></div>
       <span id="uptime" class="pill">—</span>
-      <button id="theme" aria-label="Cambiar tema">☾</button>
+      <div class="topbar-actions">
+        <div class="notification-wrap">
+          <button id="notifications" class="icon-button" aria-label="Notificaciones" aria-expanded="false">🔔<span id="notification-badge" class="notification-badge hidden">0</span></button>
+          <section id="notification-panel" class="notification-panel hidden" aria-label="Centro de notificaciones">
+            <header><div><strong>Alertas e incidencias</strong><small id="notification-summary">Sin alertas</small></div><button id="clear-notifications" type="button">Limpiar</button></header>
+            <div id="notification-list" class="notification-list"><p class="notification-empty">No hay incidencias activas.</p></div>
+          </section>
+        </div>
+        <button id="power" class="icon-button" aria-label="Opciones de energía" aria-expanded="false">⏻</button>
+        <div id="power-menu" class="power-menu hidden">
+          <button type="button" data-power="reboot">↻ <span><strong>Reiniciar</strong><small>Reinicia Debian de forma segura</small></span></button>
+          <button type="button" data-power="poweroff" class="danger">⏻ <span><strong>Apagar</strong><small>Apaga completamente el servidor</small></span></button>
+        </div>
+        <button id="theme" class="icon-button" aria-label="Cambiar tema">☾</button>
+      </div>
       <time id="clock"></time>
     </header>
     {% block content %}{% endblock %}
   </main>
+  <dialog id="power-dialog" class="power-dialog">
+    <form method="dialog">
+      <h2 id="power-dialog-title">Confirmar acción</h2>
+      <p id="power-dialog-copy"></p>
+      <div><button value="cancel">Cancelar</button><button id="power-confirm" value="confirm" class="danger">Confirmar</button></div>
+    </form>
+  </dialog>
   <script src="/static/js/base.js"></script>
   {% block scripts %}{% endblock %}
 </body>

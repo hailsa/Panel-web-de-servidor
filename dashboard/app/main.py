@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.3.0"
+APP_VERSION = "v0.4.0"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -56,6 +56,21 @@ async def _collector_get(path: str) -> JSONResponse:
         )
 
 
+async def _collector_post(path: str, payload: dict) -> JSONResponse:
+    try:
+        token = TOKEN_FILE.read_text(encoding="utf-8").strip()
+        transport = httpx.AsyncHTTPTransport(uds=SOCKET_PATH)
+        async with httpx.AsyncClient(transport=transport, base_url="http://collector", timeout=8) as client:
+            response = await client.post(path, json=payload, headers={"Authorization": f"Bearer {token}"})
+            response.raise_for_status()
+            return JSONResponse(response.json())
+    except Exception as exc:
+        return JSONResponse(
+            {"accepted": False, "reason": "No se pudo ejecutar la acción", "detail": type(exc).__name__},
+            status_code=503,
+        )
+
+
 @app.get("/api/snapshot")
 async def snapshot() -> JSONResponse:
     return await _collector_get("/v1/snapshot")
@@ -69,3 +84,13 @@ async def users() -> JSONResponse:
 @app.get("/api/server-status")
 async def server_status() -> JSONResponse:
     return await _collector_get("/v1/server-status")
+
+
+@app.post("/api/system/power")
+async def power(request: Request) -> JSONResponse:
+    if request.headers.get("x-shc-action") != "confirm":
+        return JSONResponse({"accepted": False, "reason": "Confirmación requerida"}, status_code=403)
+    payload = await request.json()
+    if payload.get("action") not in {"reboot", "poweroff"}:
+        return JSONResponse({"accepted": False, "reason": "Acción no válida"}, status_code=400)
+    return await _collector_post("/v1/system/power", payload)

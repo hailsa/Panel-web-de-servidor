@@ -9,6 +9,7 @@ User=shc-monitor
 Group=shc-monitor
 RuntimeDirectory=shc-monitor
 RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=restart
 Environment=SHC_COLLECTOR_TOKEN_FILE=/etc/shc-monitor/collector-token
 ExecStart=/opt/shc-monitor/collector/run.sh
 Restart=on-failure

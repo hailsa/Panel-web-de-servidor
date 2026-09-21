@@ -160,6 +160,15 @@ def _network_rates(net: Any) -> tuple[float, float]:
     return round(sent, 1), round(received, 1)
 
 
+def _internet_available() -> bool:
+    """Check outbound connectivity without depending on DNS."""
+    try:
+        with socket.create_connection(("1.1.1.1", 53), timeout=1.2):
+            return True
+    except OSError:
+        return False
+
+
 def _top_processes(limit: int = 5) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     with _sample_lock:
@@ -253,6 +262,7 @@ def collect_snapshot() -> dict[str, Any]:
             "errors_out": net.errout,
             "bytes_sent_per_second": bytes_sent_per_second,
             "bytes_received_per_second": bytes_received_per_second,
+            "internet_available": _internet_available(),
         },
         "processes": _top_processes(),
         "filesystems": _filesystems(),
