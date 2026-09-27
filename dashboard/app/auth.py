@@ -8,7 +8,9 @@ import os
 import secrets
 import sqlite3
 import time
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 import bcrypt
 
@@ -22,9 +24,19 @@ def connect() -> sqlite3.Connection:
     return connection
 
 
+@contextmanager
+def transaction() -> Iterator[sqlite3.Connection]:
+    db = connect()
+    try:
+        with db:
+            yield db
+    finally:
+        db.close()
+
+
 def init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with connect() as db:
+    with transaction() as db:
         db.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1)")
         db.execute("CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, username TEXT NOT NULL, expires_at INTEGER NOT NULL)")
         db.execute("CREATE INDEX IF NOT EXISTS sessions_expires ON sessions(expires_at)")
@@ -53,23 +65,23 @@ def set_user(username: str, password: str) -> None:
     if not username or len(password) < 4:
         raise ValueError("Usuario o contraseña inválidos")
     init_db()
-    with connect() as db:
+    with transaction() as db:
         db.execute("INSERT INTO users(username,password_hash) VALUES(?,?) ON CONFLICT(username) DO UPDATE SET password_hash=excluded.password_hash, enabled=1", (username, hash_password(password)))
 
 
 def import_htpasswd(username: str, encoded: str) -> None:
     init_db()
-    with connect() as db:
+    with transaction() as db:
         db.execute("INSERT OR IGNORE INTO users(username,password_hash) VALUES(?,?)", (username, encoded))
 
 
 def authenticate(username: str, password: str) -> str | None:
-    with connect() as db:
+    with transaction() as db:
         row = db.execute("SELECT password_hash, enabled FROM users WHERE username=?", (username,)).fetchone()
     if not row or not row["enabled"] or not verify_password(password, row["password_hash"]):
         return None
     token = secrets.token_urlsafe(32)
-    with connect() as db:
+    with transaction() as db:
         db.execute("INSERT INTO sessions(token_hash,username,expires_at) VALUES(?,?,?)", (hashlib.sha256(token.encode()).hexdigest(), username, int(time.time()) + SESSION_SECONDS))
     return token
 
@@ -77,12 +89,18 @@ def authenticate(username: str, password: str) -> str | None:
 def session_user(token: str | None) -> str | None:
     if not token:
         return None
-    with connect() as db:
+    with transaction() as db:
         row = db.execute("SELECT username FROM sessions WHERE token_hash=? AND expires_at>?", (hashlib.sha256(token.encode()).hexdigest(), int(time.time()))).fetchone()
     return row["username"] if row else None
 
 
+def logout_csrf_token(token: str | None) -> str:
+    if not token:
+        return ""
+    return hmac.new(token.encode(), b"shc-logout-v1", hashlib.sha256).hexdigest()
+
+
 def revoke(token: str | None) -> None:
     if token:
-        with connect() as db:
+        with transaction() as db:
             db.execute("DELETE FROM sessions WHERE token_hash=?", (hashlib.sha256(token.encode()).hexdigest(),))

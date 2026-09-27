@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import asyncio
+import hmac
 import time
 from collections import defaultdict
 from contextlib import suppress
@@ -21,7 +22,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.4.5"
+APP_VERSION = "v0.4.6"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -44,7 +45,7 @@ async def require_login(request: Request, call_next):
             return JSONResponse({"detail": "Iniciá sesión"}, status_code=401)
         return RedirectResponse("/login", status_code=303)
     request.state.username = username
-    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+    if request.method not in {"GET", "HEAD", "OPTIONS"} and request.url.path != "/logout":
         origin = request.headers.get("origin")
         expected = f"https://{request.headers.get('host', '')}"
         if origin != expected:
@@ -80,7 +81,13 @@ async def login(request: Request):
 
 @app.post("/logout")
 async def logout(request: Request):
-    auth.revoke(request.cookies.get("shc_session"))
+    session_token = request.cookies.get("shc_session")
+    form = await request.form()
+    submitted = str(form.get("csrf_token", ""))
+    expected = auth.logout_csrf_token(session_token)
+    if not expected or not hmac.compare_digest(submitted, expected):
+        return JSONResponse({"detail": "Solicitud de cierre de sesión inválida"}, status_code=403)
+    auth.revoke(session_token)
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie("shc_session")
     return response
@@ -91,19 +98,27 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def page_context(request: Request, active: str) -> dict[str, str]:
+    return {
+        "active": active,
+        "version": APP_VERSION,
+        "logout_csrf_token": auth.logout_csrf_token(request.cookies.get("shc_session")),
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html", context={"active": "dashboard", "version": APP_VERSION})
+    return templates.TemplateResponse(request=request, name="index.html", context=page_context(request, "dashboard"))
 
 
 @app.get("/usuarios", response_class=HTMLResponse)
 def users_page(request: Request):
-    return templates.TemplateResponse(request=request, name="users.html", context={"active": "users", "version": APP_VERSION})
+    return templates.TemplateResponse(request=request, name="users.html", context=page_context(request, "users"))
 
 
 @app.get("/estado-servidor", response_class=HTMLResponse)
 def server_status_page(request: Request):
-    return templates.TemplateResponse(request=request, name="server_status.html", context={"active": "status", "version": APP_VERSION})
+    return templates.TemplateResponse(request=request, name="server_status.html", context=page_context(request, "status"))
 
 
 async def _collector_get(path: str) -> JSONResponse:

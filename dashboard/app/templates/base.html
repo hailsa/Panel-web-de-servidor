@@ -42,7 +42,7 @@
         <button id="theme" class="icon-button" aria-label="Cambiar tema">☾</button>
       </div>
       <time id="clock"></time>
-      <form action="/logout" method="post" class="logout-form"><button type="submit" aria-label="Cerrar sesión">Salir</button></form>
+      <form action="/logout" method="post" class="logout-form"><input type="hidden" name="csrf_token" value="{{ logout_csrf_token }}"><button type="submit" aria-label="Cerrar sesión">Salir</button></form>
     </header>
     {% block content %}{% endblock %}
   </main>
