@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark light">
   <title>{% block title %}SHC · Monitor de Servidor{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/vendor/xterm/xterm.css">
 </head>
 <body>
   <aside class="sidebar" id="sidebar">
@@ -37,12 +38,18 @@
           <button type="button" data-power="reboot">↻ <span><strong>Reiniciar</strong><small>Reinicia Debian de forma segura</small></span></button>
           <button type="button" data-power="poweroff" class="danger">⏻ <span><strong>Apagar</strong><small>Apaga completamente el servidor</small></span></button>
         </div>
+        <button id="terminal-toggle" class="icon-button terminal-toggle" aria-label="Abrir consola" aria-expanded="false">&gt;_</button>
         <button id="theme" class="icon-button" aria-label="Cambiar tema">☾</button>
       </div>
       <time id="clock"></time>
+      <form action="/logout" method="post" class="logout-form"><button type="submit" aria-label="Cerrar sesión">Salir</button></form>
     </header>
     {% block content %}{% endblock %}
   </main>
+  <section id="terminal-panel" class="terminal-panel hidden" aria-label="Consola del servidor">
+    <header><strong>Consola · servidor</strong><button id="terminal-close" aria-label="Cerrar consola">×</button></header>
+    <div id="terminal-screen"></div>
+  </section>
   <dialog id="power-dialog" class="power-dialog">
     <form method="dialog">
       <h2 id="power-dialog-title">Confirmar acción</h2>
@@ -50,7 +57,9 @@
       <div><button value="cancel">Cancelar</button><button id="power-confirm" value="confirm" class="danger">Confirmar</button></div>
     </form>
   </dialog>
+  <script src="/static/vendor/xterm/xterm.js"></script>
   <script src="/static/js/base.js"></script>
+  <script src="/static/js/terminal.js"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

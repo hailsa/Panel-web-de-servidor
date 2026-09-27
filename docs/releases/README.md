@@ -6,6 +6,7 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.2.0`: navegación, inventario de usuarios y estado detallado del servidor.
 - `v0.3.0`: gráficos, Top 5 de procesos, iconografía SVG y reorganización visual.
 - `v0.4.0`: energía segura, notificaciones operativas, navegación adaptable y corrección del uptime.
+- `v0.4.5`: página de acceso, sesiones locales, consola integrada y reparación de las acciones de energía.
 
 Para cada nueva versión:
 

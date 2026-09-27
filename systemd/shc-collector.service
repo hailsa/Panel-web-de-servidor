@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=shc-monitor
-Group=shc-monitor
+User=hailsa
+Group=hailsa
 RuntimeDirectory=shc-monitor
 RuntimeDirectoryMode=0755
 RuntimeDirectoryPreserve=restart
@@ -14,19 +14,20 @@ Environment=SHC_COLLECTOR_TOKEN_FILE=/etc/shc-monitor/collector-token
 ExecStart=/opt/shc-monitor/collector/run.sh
 Restart=on-failure
 RestartSec=3
+RuntimeDirectoryPreserve=restart
 UMask=0007
-NoNewPrivileges=true
+NoNewPrivileges=false
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=false
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
-RestrictSUIDSGID=true
+RestrictSUIDSGID=false
 RestrictRealtime=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
-ReadWritePaths=/run/shc-monitor
+ReadWritePaths=/run/shc-monitor /home/hailsa
 
 [Install]
 WantedBy=multi-user.target

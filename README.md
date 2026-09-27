@@ -2,7 +2,7 @@
 
 SHC es un panel de bajo consumo para supervisar un servidor Debian doméstico. La interfaz mantiene su identidad visual oscura/cyber y limita las acciones administrativas a controles explícitos y protegidos de apagado y reinicio.
 
-## Estado del proyecto · v0.4.0
+## Estado del proyecto · v0.4.5
 
 La versión actual está pensada para publicarse mediante Apache en una URL interna como `https://monitor.example.internal/`. Incluye autenticación HTTP, métricas reales con actualización cada dos segundos, gráficos y sparklines, Top 5 de procesos, inventario de usuarios, estado detallado de hardware, discos, RAID, sensores, servicios y contenedores, collector por socket Unix, Docker aislado, HTTPS, alertas operativas y controles protegidos de energía.
 
@@ -61,7 +61,7 @@ tests/        Pruebas automatizadas
 - Dashboard publicado únicamente en `127.0.0.1:8085`.
 - Collector accesible exclusivamente mediante socket Unix.
 - Token interno generado durante la instalación y fuera del repositorio.
-- Autenticación HTTP Basic gestionada por Apache con bcrypt y credenciales fuera del repositorio.
+- Inicio de sesión con cuentas SQLite y contraseñas derivadas con scrypt; sesiones en cookies protegidas.
 - Cookies `Secure`, `HttpOnly` y `SameSite=Strict`.
 - Backups con timestamp antes de modificar Apache, systemd o certificados.
 - Sin telemetría, analítica o dependencias web permanentes.
@@ -84,8 +84,8 @@ sudo docker logs -f shc-monitor
 sudo apache2ctl configtest
 ```
 
-Para cambiar la contraseña web de forma interactiva:
+Para cambiar una contraseña web de forma interactiva:
 
 ```bash
-sudo htpasswd -B /etc/shc-monitor/htpasswd USUARIO
+docker exec -it shc-monitor python -m app.manage_users set-password USUARIO
 ```

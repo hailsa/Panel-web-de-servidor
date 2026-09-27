@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Iniciar sesión · SHC</title><link rel="stylesheet" href="/static/css/app.css"></head>
+<body class="login-page">
+  <main class="login-card card">
+    <img src="/static/img/logo.png" alt="SHC" class="login-logo">
+    <h1>Ingresar al servidor</h1>
+    <p>SHC Monitor {{ version }}</p>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post" action="/login">
+      <label>Usuario<input name="username" autocomplete="username" required autofocus></label>
+      <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Ingresar</button>
+    </form>
+  </main>
+</body>
+</html>
