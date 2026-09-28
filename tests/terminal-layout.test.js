@@ -54,15 +54,16 @@ const screen = nodes['terminal-screen'];
 Object.defineProperty(screen, 'clientWidth', {get: () => panel.getBoundingClientRect().width - 16});
 Object.defineProperty(screen, 'clientHeight', {get: () => panel.getBoundingClientRect().height - 42});
 class FakeTerminal {
-  constructor() { this.cols = 80; this.rows = 24; }
+  constructor() { this.cols = 80; this.rows = 24; this.output = ''; FakeTerminal.instances.push(this); }
   open() {}
-  write() {}
-  clear() {}
+  write(data) { this.output += data; }
+  clear() { this.output = ''; }
   focus() {}
   dispose() {}
   onData() {}
   resize(cols, rows) { this.cols = cols; this.rows = rows; }
 }
+FakeTerminal.instances = [];
 class FakeWebSocket {
   static OPEN = 1;
   constructor() { this.readyState = 0; this.sent = []; sockets.push(this); }
@@ -98,8 +99,10 @@ nodes['terminal-toggle'].dispatch('click');
 assert.equal(panel.classList.contains('hidden'), false);
 assert.ok(parseFloat(panel.style.top) >= 72);
 assert.ok(parseFloat(panel.style.left) >= 224);
+sockets[0].onmessage({data:'hailsa@debianserver:~$ '});
 sockets[0].readyState = FakeWebSocket.OPEN;
 sockets[0].onopen();
+assert.ok(FakeTerminal.instances[0].output.includes('hailsa@debianserver:~$ '), 'el saludo temprano no debe borrarse');
 assert.ok(sockets[0].sent.some(message => message.type === 'resize'));
 
 nodes['terminal-expand'].dispatch('click');

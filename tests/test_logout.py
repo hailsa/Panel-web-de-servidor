@@ -45,6 +45,16 @@ class LogoutTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(self.client.get("/").status_code, 200)
 
+    def test_terminal_is_available_on_every_panel_page(self):
+        for path in ("/", "/usuarios", "/estado-servidor"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn('id="terminal-toggle"', response.text)
+                self.assertIn('id="terminal-panel"', response.text)
+                self.assertIn('id="terminal-screen"', response.text)
+                self.assertIn('/static/js/terminal.js?v=v0.4.8', response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

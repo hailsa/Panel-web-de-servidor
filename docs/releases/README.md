@@ -9,6 +9,7 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.4.5`: página de acceso, sesiones locales, consola integrada y reparación de las acciones de energía.
 - `v0.4.6`: login centrado y renovado; cierre de sesión fiable con protección CSRF e invalidación de la sesión.
 - `v0.4.7`: consola movible, redimensionable y ampliable sin cubrir la barra superior.
+- `v0.4.8`: corrige la consola vacía al conectar y verifica su apertura en todas las páginas del panel.
 
 Para cada nueva versión:
 

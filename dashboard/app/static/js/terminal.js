@@ -160,7 +160,7 @@
     terminal.write('Conectando al servidor…\r\n');
     const connection = new WebSocket(`wss://${location.host}/ws/terminal`);
     socket = connection;
-    connection.onopen = () => { if (socket !== connection) return; terminal.clear(); resizeTerminal(true); terminal.focus(); };
+    connection.onopen = () => { if (socket !== connection) return; resizeTerminal(true); terminal.focus(); };
     connection.onmessage = event => { if (socket === connection && terminal) terminal.write(event.data); };
     connection.onclose = () => { if (socket === connection && terminal) terminal.write('\r\n[Conexión cerrada]\r\n'); };
     terminal.onData(data => { if (socket === connection && connection.readyState === WebSocket.OPEN) connection.send(JSON.stringify({type:'input', data})); });
