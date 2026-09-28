@@ -2,6 +2,8 @@
 
 `test_logout.py` comprueba que el formulario de salida funciona sin encabezado `Origin`, revoca la sesión y rechaza solicitudes sin token CSRF.
 
+`terminal-layout.test.js` comprueba apertura, movimiento, cambio de tamaño y ampliación tanto en escritorio como en una pantalla de teléfono. Ejecutar con `node tests/terminal-layout.test.js`.
+
 En el servidor, después de construir la imagen del dashboard:
 
 ```bash

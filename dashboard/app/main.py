@@ -22,7 +22,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.4.6"
+APP_VERSION = "v0.4.7"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")

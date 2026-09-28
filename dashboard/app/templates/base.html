@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark light">
   <title>{% block title %}SHC · Monitor de Servidor{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v={{ version }}">
   <link rel="stylesheet" href="/static/vendor/xterm/xterm.css">
 </head>
 <body>
@@ -47,8 +47,15 @@
     {% block content %}{% endblock %}
   </main>
   <section id="terminal-panel" class="terminal-panel hidden" aria-label="Consola del servidor">
-    <header><strong>Consola · servidor</strong><button id="terminal-close" aria-label="Cerrar consola">×</button></header>
+    <header id="terminal-header" class="terminal-header">
+      <strong>Consola · servidor</strong>
+      <div class="terminal-controls">
+        <button id="terminal-expand" type="button" aria-label="Ampliar consola" aria-pressed="false" title="Ampliar consola">⤢</button>
+        <button id="terminal-close" type="button" aria-label="Cerrar consola" title="Cerrar consola">×</button>
+      </div>
+    </header>
     <div id="terminal-screen"></div>
+    <div id="terminal-resize" class="terminal-resize" role="separator" aria-label="Cambiar tamaño de la consola" title="Arrastrar para cambiar el tamaño"></div>
   </section>
   <dialog id="power-dialog" class="power-dialog">
     <form method="dialog">
@@ -59,7 +66,7 @@
   </dialog>
   <script src="/static/vendor/xterm/xterm.js"></script>
   <script src="/static/js/base.js"></script>
-  <script src="/static/js/terminal.js"></script>
+  <script src="/static/js/terminal.js?v={{ version }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
