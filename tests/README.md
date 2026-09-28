@@ -4,6 +4,8 @@
 
 `terminal-layout.test.js` comprueba apertura, movimiento, cambio de tamaño y ampliación tanto en escritorio como en una pantalla de teléfono. Ejecutar con `node tests/terminal-layout.test.js`.
 
+`test_collector_terminal.py` comprueba doce sesiones sucesivas y tres simultáneas contra el collector real, y que cada una recibe salida. En el servidor: `cd /opt/shc-monitor/collector && .venv/bin/python -m unittest discover -s /opt/shc-monitor/tests -p test_collector_terminal.py`.
+
 En el servidor, después de construir la imagen del dashboard:
 
 ```bash

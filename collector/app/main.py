@@ -89,15 +89,41 @@ async def terminal(websocket: WebSocket) -> None:
         await websocket.close(code=1008)
         return
     master, slave = pty.openpty()
-    process = subprocess.Popen(["/bin/bash", "--login"], stdin=slave, stdout=slave, stderr=slave,
+    process = subprocess.Popen(["/bin/bash", "--noprofile", "--norc", "-i"], stdin=slave, stdout=slave, stderr=slave,
                                cwd="/home/hailsa", start_new_session=True, close_fds=True,
-                               env={"HOME": "/home/hailsa", "USER": "hailsa", "LOGNAME": "hailsa", "TERM": "xterm-256color", "PATH": "/usr/local/bin:/usr/bin:/bin"})
+                               env={"HOME": "/home/hailsa", "USER": "hailsa", "LOGNAME": "hailsa", "TERM": "xterm-256color", "PATH": "/usr/local/bin:/usr/bin:/bin", "PS1": "hailsa@debianserver:\\w\\$ "})
     os.close(slave)
+    os.set_blocking(master, False)
     await websocket.accept()
 
+    async def next_output() -> bytes:
+        loop = asyncio.get_running_loop()
+        ready = loop.create_future()
+
+        def read_ready() -> None:
+            try:
+                data = os.read(master, 4096)
+            except BlockingIOError:
+                return
+            except OSError as exc:
+                ready.set_exception(exc)
+            else:
+                ready.set_result(data)
+
+        loop.add_reader(master, read_ready)
+        try:
+            return await ready
+        finally:
+            loop.remove_reader(master)
+
     async def read_output() -> None:
-        while process.poll() is None:
-            data = await asyncio.to_thread(os.read, master, 4096)
+        while True:
+            try:
+                data = await next_output()
+            except OSError:
+                break  # PTYs report EIO when the shell exits.
+            if not data:
+                break
             await websocket.send_text(data.decode("utf-8", errors="replace"))
 
     async def read_input() -> None:
@@ -116,9 +142,14 @@ async def terminal(websocket: WebSocket) -> None:
     finally:
         for task in tasks:
             task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
         if process.poll() is None:
             process.terminate()
         os.close(master)
-        await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            await asyncio.to_thread(process.wait, timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            await asyncio.to_thread(process.wait)
         with suppress(RuntimeError):
             await websocket.close()

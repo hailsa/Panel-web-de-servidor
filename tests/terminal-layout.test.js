@@ -48,6 +48,8 @@ const main = element({left:210});
 const topbar = element({top:0, height:58});
 const windowListeners = new Map();
 const frames = [];
+const timers = new Map();
+let timerId = 0;
 const storage = new Map();
 const sockets = [];
 const screen = nodes['terminal-screen'];
@@ -66,6 +68,7 @@ class FakeTerminal {
 FakeTerminal.instances = [];
 class FakeWebSocket {
   static OPEN = 1;
+  static CLOSED = 3;
   constructor() { this.readyState = 0; this.sent = []; sockets.push(this); }
   send(data) { this.sent.push(JSON.parse(data)); }
   close() { this.readyState = 3; }
@@ -91,6 +94,8 @@ const context = {
     setItem: (key, value) => storage.set(key, value),
   },
   requestAnimationFrame(callback) { frames.push(callback); return frames.length; },
+  setTimeout(callback) { const id = ++timerId; timers.set(id, callback); return id; },
+  clearTimeout(id) { timers.delete(id); },
 };
 const source = fs.readFileSync(path.join(__dirname, '../dashboard/app/static/js/terminal.js'), 'utf8');
 vm.runInNewContext(source, context);
@@ -103,6 +108,7 @@ sockets[0].onmessage({data:'hailsa@debianserver:~$ '});
 sockets[0].readyState = FakeWebSocket.OPEN;
 sockets[0].onopen();
 assert.ok(FakeTerminal.instances[0].output.includes('hailsa@debianserver:~$ '), 'el saludo temprano no debe borrarse');
+assert.equal(timers.size, 0, 'la llegada de datos cancela el límite de espera');
 assert.ok(sockets[0].sent.some(message => message.type === 'resize'));
 
 nodes['terminal-expand'].dispatch('click');
@@ -138,4 +144,12 @@ assert.equal(parseFloat(panel.style.width), 374);
 assert.equal(parseFloat(panel.style.height), 770);
 
 while (frames.length) frames.shift()();
+nodes['terminal-close'].dispatch('click');
+nodes['terminal-toggle'].dispatch('click');
+assert.equal(timers.size, 1);
+sockets[0].onclose();
+assert.equal(timers.size, 1, 'el cierre anterior no cancela el límite de la nueva conexión');
+[...timers.values()][0]();
+assert.match(FakeTerminal.instances[1].output, /La consola no respondió/);
+assert.equal(sockets[1].readyState, 3);
 console.log('Terminal layout: desktop, drag, resize and mobile expand OK');

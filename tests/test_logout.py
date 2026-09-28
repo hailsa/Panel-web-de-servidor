@@ -53,7 +53,7 @@ class LogoutTests(unittest.TestCase):
                 self.assertIn('id="terminal-toggle"', response.text)
                 self.assertIn('id="terminal-panel"', response.text)
                 self.assertIn('id="terminal-screen"', response.text)
-                self.assertIn('/static/js/terminal.js?v=v0.4.8', response.text)
+                self.assertIn('/static/js/terminal.js?v=v0.4.9', response.text)
 
 
 if __name__ == "__main__":

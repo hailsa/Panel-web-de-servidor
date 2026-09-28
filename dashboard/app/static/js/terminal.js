@@ -13,6 +13,7 @@
   let savedGeometry = null;
   let interaction = null;
   let resizeFrame = 0;
+  let startupTimer = 0;
 
   const finite = (value, fallback) => Number.isFinite(value) ? value : fallback;
   const clamp = (value, minimum, maximum) => Math.min(Math.max(value, minimum), maximum);
@@ -138,6 +139,7 @@
 
   const hide = () => {
     finishInteraction();
+    clearTimeout(startupTimer);
     if (maximized) {
       maximized = false;
       panel.classList.remove('maximized');
@@ -160,9 +162,23 @@
     terminal.write('Conectando al servidor…\r\n');
     const connection = new WebSocket(`wss://${location.host}/ws/terminal`);
     socket = connection;
+    startupTimer = setTimeout(() => {
+      if (socket !== connection || connection.readyState === WebSocket.CLOSED) return;
+      terminal.write('\r\n[La consola no respondió. Cerrala y volvé a abrirla.]\r\n');
+      connection.close();
+    }, 10000);
     connection.onopen = () => { if (socket !== connection) return; resizeTerminal(true); terminal.focus(); };
-    connection.onmessage = event => { if (socket === connection && terminal) terminal.write(event.data); };
-    connection.onclose = () => { if (socket === connection && terminal) terminal.write('\r\n[Conexión cerrada]\r\n'); };
+    connection.onmessage = event => {
+      if (socket !== connection || !terminal) return;
+      if (startupTimer) { clearTimeout(startupTimer); startupTimer = 0; terminal.clear(); }
+      terminal.write(event.data);
+    };
+    connection.onclose = () => {
+      if (socket !== connection) return;
+      clearTimeout(startupTimer);
+      startupTimer = 0;
+      if (terminal) terminal.write('\r\n[Conexión cerrada]\r\n');
+    };
     terminal.onData(data => { if (socket === connection && connection.readyState === WebSocket.OPEN) connection.send(JSON.stringify({type:'input', data})); });
   });
   close.addEventListener('click', hide);
