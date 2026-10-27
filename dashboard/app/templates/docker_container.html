@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Contenedor · SHC{% endblock %}
+{% block content %}
+<section class="content vm-page docker-page" data-container-id="{{ container_id }}">
+  <a class="vm-back" href="/docker">← Docker</a>
+  <div class="vm-title"><div class="heading"><h1 id="docker-name">Contenedor</h1><p id="docker-subtitle">Consultando Docker…</p></div><div id="docker-actions" class="vm-actions"></div></div>
+  <div id="error" class="error hidden"></div><div id="docker-message" class="vm-message hidden" role="status"></div>
+  <div class="status-metrics vm-summary"><article class="metric green"><span>CPU</span><strong id="docker-cpu">—</strong></article><article class="metric blue"><span>Memoria</span><strong id="docker-memory">—</strong></article><article class="metric green"><span>Red (acumulado)</span><strong id="docker-network">—</strong></article><article class="metric violet"><span>Procesos (PIDs)</span><strong id="docker-pids">—</strong></article></div>
+  <div class="docker-resources docker-detail">
+    <article class="card"><h2>Información y configuración</h2><dl id="docker-info"></dl><button id="docker-policy" class="docker-policy">Cambiar política de reinicio</button><p class="muted vm-note">Si se administra con Compose, conservá la misma política en su archivo para que no se reemplace al recrearlo.</p></article>
+    <article class="card"><h2>Puertos y redes</h2><div id="docker-ports"></div><div id="docker-container-networks"></div></article>
+    <article class="card"><h2>Recursos y seguridad</h2><dl id="docker-limits"></dl><h3>Variables de entorno</h3><div id="docker-env" class="docker-env"></div><small class="muted">Se muestran sólo los nombres; los valores no se envían al navegador.</small></article>
+    <article class="card docker-wide"><h2>Volúmenes y montajes</h2><div class="table-wrap"><table><thead><tr><th>Tipo</th><th>Origen</th><th>Destino</th><th>Acceso</th></tr></thead><tbody id="docker-mounts"></tbody></table></div></article>
+    <article class="card"><h2>Procesos del contenedor</h2><div id="docker-processes"></div></article>
+    <article class="card docker-wide"><div class="vm-card-title"><h2>Logs recientes</h2><div><button id="docker-logs-refresh">Cargar logs</button><button id="docker-logs-clear">Limpiar vista</button></div></div><p class="muted vm-note">Últimas 200 líneas de las últimas 24 horas. Los logs pueden contener datos de la aplicación; se cargan sólo al solicitarlos.</p><pre id="docker-logs" class="docker-logs">Los logs todavía no se cargaron.</pre></article>
+  </div>
+</section>
+{% include "docker_dialog.html" %}
+{% endblock %}
+{% block scripts %}<script src="/static/js/docker.js?v={{ version }}"></script>{% endblock %}

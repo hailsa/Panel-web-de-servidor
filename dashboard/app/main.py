@@ -6,6 +6,7 @@ import os
 import asyncio
 import hmac
 import time
+import re
 from uuid import UUID
 from collections import defaultdict
 from contextlib import suppress
@@ -23,7 +24,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.5.1"
+APP_VERSION = "v0.6.0"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -173,12 +174,52 @@ async def vm_proxy(path, payload=None):
                                             headers={"Authorization": f"Bearer {token}"})
         return JSONResponse(response.json(), status_code=response.status_code)
     except Exception:
-        return JSONResponse({"detail": "No se pudo contactar al gestor de máquinas virtuales"}, status_code=503)
+        return JSONResponse({"detail": "No se pudo contactar al collector"}, status_code=503)
 
 
 @app.get("/api/vms")
 async def vms():
     return await vm_proxy("/v1/vms")
+
+
+@app.get('/docker', response_class=HTMLResponse)
+def docker_page(request: Request):
+    return templates.TemplateResponse(request=request,name='docker.html',context=page_context(request,'docker'))
+
+
+@app.get('/docker/{container_id}', response_class=HTMLResponse)
+def docker_detail_page(request: Request, container_id: str):
+    if not re.fullmatch(r'[a-f0-9]{64}',container_id):
+        return RedirectResponse('/docker',status_code=303)
+    context=page_context(request,'docker')
+    context['container_id']=container_id
+    return templates.TemplateResponse(request=request,name='docker_container.html',context=context)
+
+
+@app.get('/api/docker')
+async def docker_inventory():
+    return await vm_proxy('/v1/docker')
+
+
+@app.get('/api/docker/{container_id}')
+async def docker_detail(container_id: str):
+    if not re.fullmatch(r'[a-f0-9]{64}',container_id): return JSONResponse({'detail':'ID inválido'},status_code=400)
+    return await vm_proxy('/v1/docker/'+container_id)
+
+
+@app.get('/api/docker/{container_id}/logs')
+async def docker_logs(container_id: str):
+    if not re.fullmatch(r'[a-f0-9]{64}',container_id): return JSONResponse({'detail':'ID inválido'},status_code=400)
+    return await vm_proxy('/v1/docker/'+container_id+'/logs')
+
+
+@app.post('/api/docker/{container_id}')
+async def docker_action(container_id: str,request: Request):
+    if not re.fullmatch(r'[a-f0-9]{64}',container_id): return JSONResponse({'detail':'ID inválido'},status_code=400)
+    if request.headers.get('x-shc-action')!='confirm':return JSONResponse({'detail':'Confirmación requerida'},status_code=403)
+    payload=await request.json()
+    if not isinstance(payload,dict):return JSONResponse({'detail':'Solicitud inválida'},status_code=400)
+    return await vm_proxy('/v1/docker/'+container_id,payload)
 
 
 @app.get("/api/vms/{domain}")

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Docker · SHC{% endblock %}
+{% block content %}
+<section class="content vm-page docker-page" data-container-id="">
+  <div class="heading heading-with-icon"><span class="heading-icon"><svg><use href="/static/img/icons.svg#docker"></use></svg></span><div><h1>Docker</h1><p id="docker-engine">Contenedores, recursos y almacenamiento</p></div></div>
+  <div id="error" class="error hidden"></div><div id="docker-message" class="vm-message hidden" role="status"></div>
+  <div class="status-metrics vm-summary"><article class="metric green"><span>Contenedores</span><strong id="docker-total">—</strong></article><article class="metric green"><span>En ejecución</span><strong id="docker-running">—</strong></article><article class="metric blue"><span>Imágenes</span><strong id="docker-images-count">—</strong></article><article class="metric violet"><span>Volúmenes</span><strong id="docker-volumes-count">—</strong></article></div>
+  <div class="card vm-toolbar"><label class="search"><input id="docker-search" type="search" placeholder="Buscar contenedor, imagen o proyecto…" aria-label="Buscar contenedor"></label><select id="docker-state" aria-label="Filtrar estado"><option value="all">Todos los estados</option><option value="running">En ejecución</option><option value="exited">Detenidos</option><option value="paused">Pausados</option></select><button id="docker-refresh">Actualizar</button></div>
+  <article class="card"><h2>Contenedores</h2><div class="table-wrap"><table><thead><tr><th>Nombre / imagen</th><th>Estado / salud</th><th>CPU</th><th>Memoria</th><th>Puertos publicados</th><th>Acciones</th></tr></thead><tbody id="docker-containers"><tr><td colspan="6" class="empty">Consultando Docker…</td></tr></tbody></table></div></article>
+  <div class="docker-resources">
+    <article class="card"><h2>Imágenes locales</h2><div class="table-wrap"><table><thead><tr><th>Repositorio</th><th>Tag</th><th>Tamaño</th></tr></thead><tbody id="docker-images"></tbody></table></div></article>
+    <article class="card"><h2>Redes</h2><div id="docker-networks"></div></article>
+    <article class="card"><h2>Volúmenes</h2><div id="docker-volumes"></div></article>
+  </div>
+</section>
+{% include "docker_dialog.html" %}
+{% endblock %}
+{% block scripts %}<script src="/static/js/docker.js?v={{ version }}"></script>{% endblock %}

@@ -25,8 +25,29 @@ from .collectors.details import collect_hardware, collect_physical_disks, collec
 from .collectors.snapshot import collect_snapshot
 from .collectors.users import collect_users
 from .vm_management import vm_request
+from . import docker_management
 
 app = FastAPI(title="SHC Collector", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+@app.get('/v1/docker', dependencies=[Depends(require_token)])
+def docker_inventory():
+    return docker_management.inventory()
+
+
+@app.get('/v1/docker/{container_id}', dependencies=[Depends(require_token)])
+def docker_detail(container_id: str):
+    return docker_management.detail(container_id)
+
+
+@app.get('/v1/docker/{container_id}/logs', dependencies=[Depends(require_token)])
+def docker_logs(container_id: str):
+    return docker_management.logs(container_id)
+
+
+@app.post('/v1/docker/{container_id}', dependencies=[Depends(require_token)])
+def docker_action(container_id: str, payload: dict):
+    return docker_management.action(container_id,payload)
 
 
 @app.get("/v1/vms", dependencies=[Depends(require_token)])

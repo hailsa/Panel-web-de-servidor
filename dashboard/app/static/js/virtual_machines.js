@@ -10,7 +10,7 @@ function actions(vm) {
   if(vm.state==='shut off') html += button(vm.id, 'start', '▶ Encender');
   if(vm.state==='running') html += button(vm.id,'shutdown','Apagar') + button(vm.id,'reboot','Reiniciar') + button(vm.id,'pause','Pausar');
   if(vm.state==='paused') html += button(vm.id,'resume','Reanudar');
-  if(['running','paused'].includes(vm.state)) html += `<details class="vm-more"><summary>Más ⋮</summary><div>${button(vm.id,'force-off','Forzar apagado',true)}${vm.state==='running'?button(vm.id,'reset','Forzar reinicio',true):''}</div></details>`;
+  if(['running','paused'].includes(vm.state)) html += `<button type="button" popovertarget="vm-more-${vm.id}" aria-label="Más acciones de ${esc(vm.name)}">Más ⋮</button><div popover id="vm-more-${vm.id}" class="vm-action-popover">${button(vm.id,'force-off','Forzar apagado',true)}${vm.state==='running'?button(vm.id,'reset','Forzar reinicio',true):''}</div>`;
   return html;
 }
 async function api(path, payload) {
@@ -52,7 +52,7 @@ function renderDetail(vm) {
   $('vm-connect').disabled=vm.state!=='running'||!vm.vnc||!!rfb;
 }
 async function refresh() {
-  if(busy) return;
+  if(busy || document.querySelector('.vm-action-popover:popover-open') || $('vm-dialog').open) return;
   busy=true;
   try {
     if(domain) renderDetail(await api(`/api/vms/${domain}`));
@@ -78,8 +78,14 @@ function openAction(id,action,name) {
   $('vm-dialog').showModal();
 }
 document.addEventListener('click',event=>{
+  const trigger=event.target.closest('[popovertarget]');
+  if(trigger){
+    const menu=$(trigger.getAttribute('popovertarget')), rect=trigger.getBoundingClientRect();
+    menu.style.left=`${Math.max(8,Math.min(innerWidth-238,rect.right-230))}px`;
+    menu.style.top=`${rect.bottom+130>innerHeight?Math.max(8,rect.top-115):rect.bottom+6}px`;
+  }
   const action=event.target.closest('[data-action]');
-  if(action) openAction(action.dataset.id,action.dataset.action);
+  if(action){document.querySelectorAll('.vm-action-popover:popover-open').forEach(menu=>menu.hidePopover());openAction(action.dataset.id,action.dataset.action);}
   const config=event.target.closest('[data-config]');
   if(config&&!config.disabled) openAction(domain,config.dataset.config,config.dataset.snapshot);
 });

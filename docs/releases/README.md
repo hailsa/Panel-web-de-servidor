@@ -11,6 +11,10 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.4.7`: consola movible, redimensionable y ampliable sin cubrir la barra superior.
 - `v0.4.8`: corrige la consola vacía al conectar y verifica su apertura en todas las páginas del panel.
 - `v0.4.9`: corrige la lectura y limpieza de sesiones de terminal; evita la espera infinita en la interfaz.
+- `v0.4.10`: detección real de KVM/libvirt.
+- `v0.5.0`: gestión de máquinas virtuales y consola VNC.
+- `v0.5.1`: identificación de servicios en los puertos abiertos.
+- `v0.6.0`: pestaña Docker y menú de acciones de VM sin recortes.
 
 Para cada nueva versión:
 
