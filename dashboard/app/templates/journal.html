@@ -1,0 +1,22 @@
+<article class="card journal-section" id="server-journal">
+  <div class="journal-heading"><div><h2>Registros del servidor</h2><p>Journal del sistema · eventos, servicios y kernel</p></div><span id="journal-storage" class="muted">Consultando fuentes…</span></div>
+  <form id="journal-filters" class="journal-filters">
+    <label>Período<select id="journal-range"><option value="15m">Últimos 15 minutos</option><option value="1h">Última hora</option><option value="6h">Últimas 6 horas</option><option value="24h" selected>Últimas 24 horas</option><option value="7d">Últimos 7 días</option><option value="30d">Últimos 30 días</option><option value="boot">Todo el arranque elegido</option><option value="custom">Personalizado</option></select></label>
+    <label>Prioridad<select id="journal-priority"><option value="0">Emergencia</option><option value="1">Alerta y superior</option><option value="2">Crítico y superior</option><option value="3">Error y superior</option><option value="4">Advertencia y superior</option><option value="5">Aviso y superior</option><option value="6">Información y superior</option><option value="7" selected>Todas (incluye debug)</option></select></label>
+    <label>Servicio<input id="journal-unit" list="journal-units" placeholder="Todos los servicios" autocomplete="off"><datalist id="journal-units"></datalist></label>
+    <label>Identificador<input id="journal-identifier" list="journal-identifiers" placeholder="Todos los identificadores" autocomplete="off"><datalist id="journal-identifiers"></datalist></label>
+    <label>Arranque<select id="journal-boot"><option value="">Todos los arranques</option><option value="0">Arranque actual</option><option value="-1">Arranque anterior</option></select></label>
+    <label>Resultados por página<select id="journal-limit"><option value="50">50</option><option value="100" selected>100</option><option value="200">200</option></select></label>
+    <label class="journal-custom hidden">Desde (hora local)<input id="journal-since" type="datetime-local"></label>
+    <label class="journal-custom hidden">Hasta (hora local)<input id="journal-until" type="datetime-local"></label>
+    <label class="journal-search">Buscar texto literal<input id="journal-search" type="search" maxlength="200" placeholder="Mensaje, proceso, PID o servicio…"></label>
+    <label class="journal-check"><input id="journal-kernel" type="checkbox"> Sólo kernel</label>
+    <div class="journal-filter-buttons"><button type="submit" id="journal-apply">Consultar</button><button type="button" id="journal-reset">Restablecer</button></div>
+  </form>
+  <div class="journal-presets" aria-label="Consultas rápidas"><button data-journal-preset="errors">Errores</button><button data-journal-preset="ssh">SSH / acceso</button><button data-journal-preset="kernel">Kernel</button><button data-journal-preset="docker">Docker</button><button data-journal-preset="apache">Apache</button><button data-journal-preset="libvirt">KVM / libvirt</button><button data-journal-preset="collector">SHC Collector</button></div>
+  <div class="journal-toolbar"><div><span id="journal-summary">Sin consultar</span><small id="journal-query-caption" class="muted"></small></div><div class="journal-tools"><label><input id="journal-live" type="checkbox"> Actualizar cada 10 s</label><button id="journal-refresh">Actualizar</button><button id="journal-export-text" disabled>Exportar TXT</button><button id="journal-export-json" disabled>Exportar JSON</button></div></div>
+  <div id="journal-error" class="error hidden" role="alert"></div>
+  <div id="journal-notice" class="journal-notice muted"></div>
+  <div class="journal-results" id="journal-results" aria-busy="false"><p class="empty">Cargando registros…</p></div>
+  <div class="journal-footer"><button id="journal-more" disabled>Cargar registros anteriores</button><small class="muted">Más recientes primero · expandí un evento para revisar sus campos. Las exportaciones incluyen únicamente los eventos cargados.</small></div>
+</article>

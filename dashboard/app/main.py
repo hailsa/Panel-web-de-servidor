@@ -24,7 +24,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.6.1"
+APP_VERSION = "v0.7.0"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -199,6 +199,22 @@ def docker_detail_page(request: Request, container_id: str):
 @app.get('/api/docker')
 async def docker_inventory():
     return await vm_proxy('/v1/docker')
+
+
+@app.get('/api/journal/metadata')
+async def journal_metadata():
+    response=await vm_proxy('/v1/journal/metadata')
+    response.headers['Cache-Control']='no-store'
+    return response
+
+
+@app.post('/api/journal/query')
+async def journal_query(request: Request):
+    payload=await request.json()
+    if not isinstance(payload,dict):return JSONResponse({'detail':'Consulta inválida'},status_code=400)
+    response=await vm_proxy('/v1/journal/query',payload)
+    response.headers['Cache-Control']='no-store'
+    return response
 
 
 @app.get('/api/docker/{container_id}')

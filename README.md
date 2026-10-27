@@ -2,13 +2,15 @@
 
 SHC es un panel de bajo consumo para supervisar un servidor Debian doméstico. La interfaz mantiene su identidad visual oscura/cyber y limita las acciones administrativas a controles explícitos y protegidos de apagado y reinicio.
 
-## Estado del proyecto · v0.6.1
+## Estado del proyecto · v0.7.0
 
 La versión actual está pensada para publicarse mediante Apache en una URL interna como `https://monitor.example.internal/`. Incluye autenticación HTTP, métricas reales con actualización cada dos segundos, gráficos y sparklines, Top 5 de procesos, inventario de usuarios, estado detallado de hardware, discos, RAID, sensores, servicios y contenedores, collector por socket Unix, Docker aislado, HTTPS, alertas operativas y controles protegidos de energía.
 
 El certificado debe incluir como SAN el hostname o las direcciones privadas elegidas durante el despliegue. Con un certificado autofirmado, el navegador mostrará una advertencia hasta confiar en la CA local correspondiente.
 
 Incluye administración de máquinas virtuales KVM y contenedores Docker desde pestañas dedicadas, con detalles, recursos, controles confirmados y consola VNC para las VM. Docker permite consultar logs, montajes, redes y procesos; las variables de entorno se muestran sólo por nombre.
+
+Estado del Servidor incorpora un visor de registros systemd con filtros de fecha, prioridad, servicio, identificador, arranque y texto, detalle por evento y exportación local de los resultados cargados.
 
 ## Arquitectura elegida
 

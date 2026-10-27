@@ -19,6 +19,7 @@
     <article class="card"><h2>⬡ Contenedores Docker</h2><div id="docker-detail"></div></article>
     <article class="card"><h2>▤ Máquinas Virtuales</h2><div id="vm-detail"></div></article>
   </div>
+  {% include "journal.html" %}
 </section>
 {% endblock %}
-{% block scripts %}<script src="/static/js/server_status.js"></script>{% endblock %}
+{% block scripts %}<script src="/static/js/server_status.js"></script><script src="/static/js/journal.js?v={{ version }}"></script>{% endblock %}

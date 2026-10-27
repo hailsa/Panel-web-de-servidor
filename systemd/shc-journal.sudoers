@@ -1,0 +1,2 @@
+# The immutable helper only builds bounded, read-only journalctl queries.
+%shc-power ALL=(root) NOPASSWD: /usr/local/libexec/shc-journal-helper

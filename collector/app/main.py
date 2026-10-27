@@ -26,8 +26,20 @@ from .collectors.snapshot import collect_snapshot
 from .collectors.users import collect_users
 from .vm_management import vm_request
 from . import docker_management
+from .journal import journal_request
 
 app = FastAPI(title="SHC Collector", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+@app.get('/v1/journal/metadata',dependencies=[Depends(require_token)])
+def journal_metadata():
+    return journal_request({'action':'metadata'})
+
+
+@app.post('/v1/journal/query',dependencies=[Depends(require_token)])
+def journal_query(payload: dict):
+    payload['action']='query'
+    return journal_request(payload)
 
 
 @app.get('/v1/docker', dependencies=[Depends(require_token)])
