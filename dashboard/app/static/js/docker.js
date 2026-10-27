@@ -27,11 +27,16 @@ function renderInventory(){
   const query=$('docker-search').value.toLocaleLowerCase(),state=$('docker-state').value;
   $('docker-total').textContent=inventory.containers.length;
   $('docker-running').textContent=inventory.containers.filter(item=>item.state==='running').length;
-  $('docker-images-count').textContent=inventory.images.length;
+  const taggedImages=inventory.images.filter(image=>image.tagged);
+  $('docker-images-count').textContent=taggedImages.length;
   $('docker-volumes-count').textContent=inventory.volumes.length;
   $('docker-engine').textContent=`Docker Engine ${inventory.engine.version} · ${inventory.engine.cpus} CPU · ${size(inventory.engine.memory_bytes)} · ${inventory.engine.driver}`;
   $('docker-containers').innerHTML=inventory.containers.filter(item=>(state==='all'||item.state===state)&&`${item.name} ${item.image} ${item.compose_project||''}`.toLocaleLowerCase().includes(query)).map(item=>`<tr><td><a class="vm-name-link" href="/docker/${item.id}">${esc(item.name)}</a><small class="vm-provider docker-image-name">${esc(item.image)}</small>${item.compose_project?`<small class="vm-provider">Compose: ${esc(item.compose_project)}</small>`:''}</td><td><span class="badge ${item.state==='running'?'online-badge':'neutral'}">${esc(nameOf(item.state))}</span><small class="vm-provider">${esc(item.health)}</small></td><td>${esc(item.stats.CPUPerc||'—')}</td><td>${esc(item.stats.MemUsage||'—')}</td><td class="docker-port-cell">${item.ports.map(port=>esc(portText(port))).join('<br>')||'Sin puertos publicados'}</td><td><div class="vm-actions">${controls(item)}</div></td></tr>`).join('')||'<tr><td colspan="6" class="empty">Sin coincidencias.</td></tr>';
-  $('docker-images').innerHTML=inventory.images.map(image=>`<tr><td>${esc(image.Repository)}</td><td>${esc(image.Tag)}</td><td>${esc(image.Size)}</td></tr>`).join('')||'<tr><td colspan="3">Sin imágenes</td></tr>';
+  const showUntagged=$('docker-show-untagged').checked;
+  const visibleImages=inventory.images.filter(image=>image.tagged||image.in_use||showUntagged).sort((a,b)=>Number(b.in_use)-Number(a.in_use)||a.Repository.localeCompare(b.Repository));
+  const hiddenCount=inventory.images.length-visibleImages.length;
+  $('docker-image-summary').textContent=`${visibleImages.length} visibles${hiddenCount?` · ${hiddenCount} sin etiqueta ocultas`:''}`;
+  $('docker-images').innerHTML=visibleImages.map(image=>`<tr><td>${esc(image.Repository==='<none>'?'Sin etiqueta':image.Repository)}</td><td>${esc(image.Tag==='<none>'?'—':image.Tag)}</td><td>${esc(image.Size)}</td><td><span class="${image.in_use?'status':'muted'}">${image.in_use?'En uso':'Disponible'}</span></td></tr>`).join('')||'<tr><td colspan="4">Sin imágenes etiquetadas</td></tr>';
   $('docker-networks').innerHTML=inventory.networks.map(network=>row(network.Name,`${network.Driver} · ${network.Scope}`)).join('')||'<p class="muted">Sin redes</p>';
   $('docker-volumes').innerHTML=inventory.volumes.map(volume=>row(volume.Name,volume.Driver)).join('')||'<p class="muted">Sin volúmenes con nombre</p>';
 }
@@ -78,7 +83,7 @@ if(containerId){
   $('docker-policy').onclick=()=>selectAction(containerId,'restart-policy');
   $('docker-logs-refresh').onclick=async()=>{const button=$('docker-logs-refresh');button.disabled=true;try{const logs=await request(`/api/docker/${containerId}/logs`);$('docker-logs').textContent=logs.text||'No hay logs recientes.';}catch(error){message(error.message,true);}finally{button.disabled=false;}};
   $('docker-logs-clear').onclick=()=>$('docker-logs').textContent='Vista de logs limpiada.';
-}else{$('docker-search').oninput=renderInventory;$('docker-state').onchange=renderInventory;$('docker-refresh').onclick=refresh;}
+}else{$('docker-search').oninput=renderInventory;$('docker-state').onchange=renderInventory;$('docker-refresh').onclick=refresh;$('docker-show-untagged').onchange=renderInventory;}
 refresh();setInterval(refresh,10000);
 fetch('/api/snapshot').then(response=>response.json()).then(data=>{if(data.system)setConnection(true,data.system.hostname,data.system.uptime_seconds);}).catch(()=>{});
 })();

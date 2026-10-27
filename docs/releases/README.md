@@ -15,6 +15,7 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.5.0`: gestión de máquinas virtuales y consola VNC.
 - `v0.5.1`: identificación de servicios en los puertos abiertos.
 - `v0.6.0`: pestaña Docker y menú de acciones de VM sin recortes.
+- `v0.6.1`: imágenes Docker ordenadas por uso y selector para imágenes sin etiqueta.
 
 Para cada nueva versión:
 

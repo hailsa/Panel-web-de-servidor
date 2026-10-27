@@ -63,8 +63,13 @@ def inventory():
         stats=stats_map()
         items=json.loads(docker('inspect',*ids)) if ids else []
         info=json.loads(docker('info','--format','{{json .}}'))
+        used_images={item.get('Image') for item in items}
+        images=json_lines('image','ls','--no-trunc')
+        for image in images:
+            image['in_use']=image.get('ID') in used_images
+            image['tagged']=image.get('Repository') not in {None,'','<none>'} and image.get('Tag') not in {None,'','<none>'}
         result={'containers':[summary(item,stats.get(item['Id'])) for item in items],
-                'images':json_lines('image','ls','--no-trunc'), 'networks':json_lines('network','ls'),
+                'images':images, 'networks':json_lines('network','ls'),
                 'volumes':json_lines('volume','ls'),
                 'engine':{'version':info.get('ServerVersion'), 'cpus':info.get('NCPU'),
                           'memory_bytes':info.get('MemTotal'), 'driver':info.get('Driver')}}

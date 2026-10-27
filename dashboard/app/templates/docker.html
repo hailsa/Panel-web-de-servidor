@@ -8,7 +8,7 @@
   <div class="card vm-toolbar"><label class="search"><input id="docker-search" type="search" placeholder="Buscar contenedor, imagen o proyecto…" aria-label="Buscar contenedor"></label><select id="docker-state" aria-label="Filtrar estado"><option value="all">Todos los estados</option><option value="running">En ejecución</option><option value="exited">Detenidos</option><option value="paused">Pausados</option></select><button id="docker-refresh">Actualizar</button></div>
   <article class="card"><h2>Contenedores</h2><div class="table-wrap"><table><thead><tr><th>Nombre / imagen</th><th>Estado / salud</th><th>CPU</th><th>Memoria</th><th>Puertos publicados</th><th>Acciones</th></tr></thead><tbody id="docker-containers"><tr><td colspan="6" class="empty">Consultando Docker…</td></tr></tbody></table></div></article>
   <div class="docker-resources">
-    <article class="card"><h2>Imágenes locales</h2><div class="table-wrap"><table><thead><tr><th>Repositorio</th><th>Tag</th><th>Tamaño</th></tr></thead><tbody id="docker-images"></tbody></table></div></article>
+    <article class="card"><h2>Imágenes locales</h2><label class="docker-image-filter"><input type="checkbox" id="docker-show-untagged"> Mostrar sin etiqueta</label><small id="docker-image-summary" class="muted"></small><div class="table-wrap"><table><thead><tr><th>Repositorio</th><th>Tag</th><th>Tamaño</th><th>Uso</th></tr></thead><tbody id="docker-images"></tbody></table></div></article>
     <article class="card"><h2>Redes</h2><div id="docker-networks"></div></article>
     <article class="card"><h2>Volúmenes</h2><div id="docker-volumes"></div></article>
   </div>
