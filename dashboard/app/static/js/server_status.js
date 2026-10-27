@@ -40,7 +40,7 @@ function renderStatus(data) {
     ? snapshot.docker.containers.map(container => row(container.name, container.status, container.state === 'running' ? 'status' : 'muted')).join('') || row('Docker', 'Sin contenedores', 'muted')
     : row('Docker', valueOr(snapshot.docker.reason), 'muted');
   $('vm-detail').innerHTML = snapshot.virtual_machines.available
-    ? (snapshot.virtual_machines.machines || []).map(machine => row(machine.name, machine.state, statusClass(machine.state))).join('') || row('Virtualización', 'Sin máquinas', 'muted')
+    ? (snapshot.virtual_machines.machines || []).map(machine => row(machine.name, machine.state === 'running' ? 'En ejecución' : machine.state === 'shut off' ? 'Apagada' : machine.state === 'paused' ? 'Pausada' : machine.state, statusClass(machine.state))).join('') || row('Virtualización', 'Sin máquinas', 'muted')
     : `<div class="empty-state"><strong>No detectadas</strong><p>${esc(snapshot.virtual_machines.reason || 'No hay proveedor de virtualización disponible.')}</p></div>`;
   setConnection(true, snapshot.system.hostname, snapshot.system.uptime_seconds);
   showError(false);

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import psutil
+from .virtual_machines import collect_virtual_machines
 
 _sample_lock = threading.Lock()
 _last_network_sample: tuple[float, int, int] | None = None
@@ -261,6 +262,6 @@ def collect_snapshot() -> dict[str, Any]:
         "docker": _docker(),
         "ports": _ports(),
         "raid": _raid(),
-        "virtual_machines": {"available": False, "reason": "No se detectó libvirt", "machines": []},
+        "virtual_machines": collect_virtual_machines(),
         "smart": {"available": False, "reason": "smartmontools no está instalado"},
     }
