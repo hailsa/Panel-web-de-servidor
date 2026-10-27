@@ -24,8 +24,64 @@ from .auth import collector_token
 from .collectors.details import collect_hardware, collect_physical_disks, collect_services, collect_voltages
 from .collectors.snapshot import collect_snapshot
 from .collectors.users import collect_users
+from .vm_management import vm_request
 
 app = FastAPI(title="SHC Collector", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+@app.get("/v1/vms", dependencies=[Depends(require_token)])
+def vm_list():
+    return vm_request({"action": "list"})
+
+
+@app.get("/v1/vms/{domain}", dependencies=[Depends(require_token)])
+def vm_detail(domain: str):
+    return vm_request({"action": "detail", "id": domain})
+
+
+@app.post("/v1/vms/{domain}", dependencies=[Depends(require_token)])
+def vm_action(domain: str, payload: dict):
+    payload["id"] = domain
+    return vm_request(payload)
+
+
+@app.websocket("/v1/vms/{domain}/console")
+async def vm_console(websocket: WebSocket, domain: str):
+    import hmac
+    if not hmac.compare_digest(websocket.headers.get("authorization", ""), f"Bearer {collector_token()}"):
+        await websocket.close(code=1008)
+        return
+    writer = None
+    try:
+        endpoint = await asyncio.to_thread(vm_request, {"action": "console", "id": domain})
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(endpoint["host"], endpoint["port"]), 5)
+        await websocket.accept()
+
+        async def remote_to_browser():
+            while True:
+                chunk = await reader.read(65536)
+                if not chunk: break
+                await websocket.send_bytes(chunk)
+
+        async def browser_to_remote():
+            while True:
+                chunk = await websocket.receive_bytes()
+                if len(chunk) > 1048576: break
+                writer.write(chunk)
+                await writer.drain()
+
+        tasks = [asyncio.create_task(remote_to_browser()), asyncio.create_task(browser_to_remote())]
+        try:
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            for task in tasks: task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+    except Exception:
+        with suppress(RuntimeError): await websocket.close(code=1011)
+    finally:
+        if writer:
+            writer.close()
+            await writer.wait_closed()
 
 
 class PowerRequest(BaseModel):

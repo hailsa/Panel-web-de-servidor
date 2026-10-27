@@ -6,6 +6,7 @@ import os
 import asyncio
 import hmac
 import time
+from uuid import UUID
 from collections import defaultdict
 from contextlib import suppress
 from pathlib import Path
@@ -22,7 +23,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.4.10"
+APP_VERSION = "v0.5.0"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -149,6 +150,78 @@ async def _collector_post(path: str, payload: dict) -> JSONResponse:
             {"accepted": False, "reason": "No se pudo ejecutar la acción", "detail": type(exc).__name__},
             status_code=503,
         )
+
+
+@app.get("/maquinas-virtuales", response_class=HTMLResponse)
+def vm_page(request: Request):
+    return templates.TemplateResponse(request=request, name="virtual_machines.html", context=page_context(request, "vms"))
+
+
+@app.get("/maquinas-virtuales/{domain}", response_class=HTMLResponse)
+def vm_detail_page(request: Request, domain: UUID):
+    context = page_context(request, "vms")
+    context["domain"] = str(domain)
+    return templates.TemplateResponse(request=request, name="virtual_machine.html", context=context)
+
+
+async def vm_proxy(path, payload=None):
+    try:
+        transport = httpx.AsyncHTTPTransport(uds=SOCKET_PATH)
+        token = TOKEN_FILE.read_text().strip()
+        async with httpx.AsyncClient(transport=transport, base_url="http://collector", timeout=115) as client:
+            response = await client.request("GET" if payload is None else "POST", path, json=payload,
+                                            headers={"Authorization": f"Bearer {token}"})
+        return JSONResponse(response.json(), status_code=response.status_code)
+    except Exception:
+        return JSONResponse({"detail": "No se pudo contactar al gestor de máquinas virtuales"}, status_code=503)
+
+
+@app.get("/api/vms")
+async def vms():
+    return await vm_proxy("/v1/vms")
+
+
+@app.get("/api/vms/{domain}")
+async def vm_details(domain: UUID):
+    return await vm_proxy(f"/v1/vms/{domain}")
+
+
+@app.post("/api/vms/{domain}")
+async def vm_action(domain: UUID, request: Request):
+    if request.headers.get("x-shc-action") != "confirm":
+        return JSONResponse({"detail": "Confirmación requerida"}, status_code=403)
+    payload = await request.json()
+    if not isinstance(payload, dict) or payload.get("action") in {"list", "detail", "console"}:
+        return JSONResponse({"detail": "Acción inválida"}, status_code=400)
+    return await vm_proxy(f"/v1/vms/{domain}", payload)
+
+
+@app.websocket("/ws/vms/{domain}/console")
+async def vm_console(websocket: WebSocket, domain: UUID):
+    if not auth.session_user(websocket.cookies.get("shc_session")) or websocket.headers.get("origin") != f"https://{websocket.headers.get('host', '')}":
+        await websocket.close(code=1008)
+        return
+    token = TOKEN_FILE.read_text().strip()
+    try:
+        async with websockets.unix_connect(SOCKET_PATH, uri=f"ws://collector/v1/vms/{domain}/console",
+                additional_headers={"Authorization": f"Bearer {token}"}, max_size=1048576) as upstream:
+            await websocket.accept()
+
+            async def outbound():
+                while True: await upstream.send(await websocket.receive_bytes())
+
+            async def inbound():
+                async for chunk in upstream:
+                    await websocket.send_bytes(chunk)
+
+            tasks = [asyncio.create_task(outbound()), asyncio.create_task(inbound())]
+            try:
+                await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for task in tasks: task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+    except Exception:
+        with suppress(RuntimeError): await websocket.close(code=1011)
 
 
 @app.get("/api/snapshot")

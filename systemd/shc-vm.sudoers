@@ -1,0 +1,2 @@
+# Install the helper root:root 0755 before enabling this narrow rule.
+%shc-power ALL=(root) NOPASSWD: /usr/local/libexec/shc-vm-helper
