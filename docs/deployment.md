@@ -5,8 +5,8 @@ Este repositorio no contiene direcciones reales, nombres internos, credenciales,
 ## Requisitos
 
 - Servidor Linux con Python 3, systemd, Docker y Docker Compose.
-- Apache con `ssl`, `proxy`, `proxy_http` y `headers`.
-- Un usuario de servicio sin acceso interactivo para el collector.
+- Apache con `ssl`, `proxy`, `proxy_http`, `proxy_wstunnel` y `headers`.
+- Una cuenta local para el collector y la consola, con pertenencia al grupo de permisos de energía limitados.
 - Un hostname interno y una o más redes privadas autorizadas.
 
 ## Configuración local
@@ -14,8 +14,8 @@ Este repositorio no contiene direcciones reales, nombres internos, credenciales,
 1. Copiar `config/config.example.yml` como `config/config.yml` y completar los valores locales.
 2. Adaptar `apache/shc-monitor.conf` con el hostname, certificado y CIDR privados.
 3. Crear un token aleatorio de al menos 32 bytes en `/etc/shc-monitor/collector-token`, con permisos mínimos.
-4. Crear el archivo bcrypt de Apache fuera del repositorio.
-5. Ajustar el usuario y grupo de `systemd/shc-collector.service` si la cuenta local difiere de `shc-monitor`.
+4. Crear `/var/lib/shc-monitor/auth` con propietario UID/GID 10001 y modo 0700; importar el hash bcrypt existente con `python -m app.manage_users import-hash hailsa` dentro del contenedor o definir contraseñas de forma interactiva con `set-password`.
+5. Ajustar el usuario, grupo y ruta de inicio del collector en `systemd/shc-collector.service` al servidor real; instalar `collector/requirements.txt` en su entorno virtual.
 6. Mantener el dashboard ligado a `127.0.0.1`; Apache debe ser el único punto de entrada.
 
 ## Validación

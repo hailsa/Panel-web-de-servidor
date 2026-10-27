@@ -1,0 +1,2 @@
+# Permit only the two power actions exposed by SHC.
+%shc-power ALL=(root) NOPASSWD: /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff

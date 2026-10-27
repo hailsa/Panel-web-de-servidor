@@ -34,7 +34,7 @@ async function refreshUsers() {
     const payload = await response.json();
     users = payload.users || [];
     renderUsers();
-    setConnection(true);
+    setConnection(true, payload.system?.hostname, payload.system?.uptime_seconds);
     showError(false);
   } catch (_) { setConnection(false); showError(true); }
 }

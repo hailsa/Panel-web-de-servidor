@@ -5,6 +5,12 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.1.0`: primera versión operativa del dashboard.
 - `v0.2.0`: navegación, inventario de usuarios y estado detallado del servidor.
 - `v0.3.0`: gráficos, Top 5 de procesos, iconografía SVG y reorganización visual.
+- `v0.4.0`: energía segura, notificaciones operativas, navegación adaptable y corrección del uptime.
+- `v0.4.5`: página de acceso, sesiones locales, consola integrada y reparación de las acciones de energía.
+- `v0.4.6`: login centrado y renovado; cierre de sesión fiable con protección CSRF e invalidación de la sesión.
+- `v0.4.7`: consola movible, redimensionable y ampliable sin cubrir la barra superior.
+- `v0.4.8`: corrige la consola vacía al conectar y verifica su apertura en todas las páginas del panel.
+- `v0.4.9`: corrige la lectura y limpieza de sesiones de terminal; evita la espera infinita en la interfaz.
 
 Para cada nueva versión:
 

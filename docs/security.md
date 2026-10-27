@@ -2,7 +2,7 @@
 
 ## Límites de confianza
 
-- El navegador no recibe acceso administrativo al servidor.
+- El navegador sólo puede abrir una consola del usuario del collector después de autenticarse; la consola equivale a acceso de shell a ese usuario y debe tratarse como una función privilegiada.
 - Apache es el único servicio web expuesto a las redes privadas autorizadas.
 - El dashboard trata todas las respuestas del collector como datos no confiables.
 - El collector acepta peticiones sólo por socket Unix y con token.
@@ -20,7 +20,7 @@ El contenedor utilizará usuario sin privilegios, `cap_drop: ALL`, `no-new-privi
 
 ## Acceso web
 
-La versión actual delega la autenticación HTTP Basic a Apache. El archivo `htpasswd` usa bcrypt, permanece fuera del repositorio y sólo debe ser legible por los procesos autorizados. Una futura autenticación propia deberá usar Argon2id y cookies `Secure`, `HttpOnly` y `SameSite=Strict`.
+La versión actual usa cuentas SQLite con scrypt y sesiones revocables en cookies `Secure`, `HttpOnly` y `SameSite=Strict`. El hash bcrypt anterior de `htpasswd` se puede importar para conservar la contraseña de `hailsa`; Apache ya no hace HTTP Basic. La consola web está restringida a sesiones autenticadas y a las redes privadas autorizadas por Apache. La cuenta de prueba `admin` debe recibir una contraseña robusta antes de ampliar el acceso.
 
 Apache añadirá encabezados de seguridad compatibles con los recursos servidos localmente. HSTS se evaluará después de que el certificado y la ruta HTTPS estén validados.
 
