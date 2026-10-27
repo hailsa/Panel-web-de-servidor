@@ -1,0 +1,2 @@
+# Fixed read-only command; no arbitrary arguments or network changes.
+%shc-power ALL=(root) NOPASSWD: /usr/bin/ss -H -lntup

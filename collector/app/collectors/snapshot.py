@@ -15,6 +15,7 @@ from typing import Any
 
 import psutil
 from .virtual_machines import collect_virtual_machines
+from .ports import collect_ports
 
 _sample_lock = threading.Lock()
 _last_network_sample: tuple[float, int, int] | None = None
@@ -189,24 +190,6 @@ def _top_processes(limit: int = 5) -> list[dict[str, Any]]:
     return rows[:limit]
 
 
-def _ports() -> list[dict[str, Any]]:
-    ok, output = _run(["ss", "-H", "-lntup"], timeout=3)
-    if not ok:
-        return []
-    rows: list[dict[str, Any]] = []
-    for line in output.splitlines():
-        parts = line.split()
-        if len(parts) < 5:
-            continue
-        local = parts[4]
-        port = local.rsplit(":", 1)[-1]
-        if not port.isdigit():
-            continue
-        rows.append({"protocol": parts[0], "address": local, "port": int(port), "process": " ".join(parts[6:])})
-    unique = {(row["protocol"], row["address"], row["port"]): row for row in rows}
-    return sorted(unique.values(), key=lambda item: (item["port"], item["protocol"]))
-
-
 def _raid() -> dict[str, Any]:
     path = Path("/proc/mdstat")
     if not path.exists():
@@ -270,7 +253,7 @@ def collect_snapshot() -> dict[str, Any]:
         "temperatures": temperatures,
         "fans": _fans(),
         "docker": _docker(),
-        "ports": _ports(),
+        "ports": collect_ports(),
         "raid": _raid(),
         "virtual_machines": collect_virtual_machines(),
         "smart": {"available": False, "reason": "smartmontools no está instalado"},
