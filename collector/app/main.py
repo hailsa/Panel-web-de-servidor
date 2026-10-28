@@ -67,6 +67,23 @@ def vm_list():
     return vm_request({"action": "list"})
 
 
+@app.get('/v1/vm-creation/options',dependencies=[Depends(require_token)])
+def vm_creation_options():
+    return vm_request({'action':'create-options'})
+
+
+@app.post('/v1/vm-creation/preview',dependencies=[Depends(require_token)])
+def vm_creation_preview(payload: dict):
+    payload['action']='create-preview'
+    return vm_request(payload)
+
+
+@app.post('/v1/vm-creation/create',dependencies=[Depends(require_token)])
+def vm_creation_create(payload: dict):
+    payload['action']='create'
+    return vm_request(payload)
+
+
 @app.get("/v1/vms/{domain}", dependencies=[Depends(require_token)])
 def vm_detail(domain: str):
     return vm_request({"action": "detail", "id": domain})

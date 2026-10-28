@@ -24,7 +24,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.7.0"
+APP_VERSION = "v0.8.0"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -156,6 +156,25 @@ async def _collector_post(path: str, payload: dict) -> JSONResponse:
 @app.get("/maquinas-virtuales", response_class=HTMLResponse)
 def vm_page(request: Request):
     return templates.TemplateResponse(request=request, name="virtual_machines.html", context=page_context(request, "vms"))
+
+
+@app.get('/maquinas-virtuales/crear',response_class=HTMLResponse)
+def vm_creation_page(request: Request):
+    return templates.TemplateResponse(request=request,name='vm_create.html',context=page_context(request,'vms'))
+
+
+@app.get('/api/vm-creation/options')
+async def vm_creation_options():
+    return await vm_proxy('/v1/vm-creation/options')
+
+
+@app.post('/api/vm-creation/{operation}')
+async def vm_creation_action(operation: str,request: Request):
+    if operation not in {'preview','create'}:return JSONResponse({'detail':'Operación inválida'},status_code=400)
+    payload=await request.json()
+    if not isinstance(payload,dict):return JSONResponse({'detail':'Solicitud inválida'},status_code=400)
+    if operation=='create' and request.headers.get('x-shc-action')!='confirm':return JSONResponse({'detail':'Confirmación requerida'},status_code=403)
+    return await vm_proxy('/v1/vm-creation/'+operation,payload)
 
 
 @app.get("/maquinas-virtuales/{domain}", response_class=HTMLResponse)
