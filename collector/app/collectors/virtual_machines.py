@@ -20,7 +20,12 @@ def _virsh(*arguments):
     return result.stdout.strip()
 
 
-def collect_virtual_machines(cache_seconds=15):
+def invalidate_virtual_machines():
+    global _cache
+    with _lock:_cache=(0.0,None)
+
+
+def collect_virtual_machines(cache_seconds=5):
     global _cache
     with _lock:
         now = time.monotonic()

@@ -2,7 +2,9 @@ import RFB from '/static/vendor/novnc/core/rfb.js';
 const {$, size, esc, row, setConnection, showError} = window.SHC;
 const domain = document.querySelector('.vm-page').dataset.vmId;
 const states = {running:'En ejecución', 'shut off':'Apagada', paused:'Pausada', 'in shutdown':'Apagándose', crashed:'Falló', pmsuspended:'Suspendida'};
-let machines = [], current = null, busy = false, pending = null, rfb = null, previousStats = null;
+let machines = [], current = null, pending = null, rfb = null, previousStats = null, actionBusy=false,lastRefreshError='';
+const observedVMs=new Map();
+let vmBaselineReady=false;
 const stateLabel = state => states[state] || state;
 const button = (id, action, label, danger=false) => `<button data-id="${esc(id)}" data-action="${action}" class="${danger?'danger':''}">${label}</button>`;
 function actions(vm) {
@@ -20,7 +22,20 @@ async function api(path, payload) {
   return data;
 }
 function message(text, error=false) {
-  $('vm-message').textContent = text; $('vm-message').classList.remove('hidden'); $('vm-message').classList.toggle('vm-message-error',error);
+  window.SHC.notify({title:error?'No se pudo completar la acción':'Máquinas virtuales',message:text,severity:error?'error':'info'});
+}
+function observeVMs(items){
+  const present=new Set(items.map(vm=>vm.id));
+  for(const [id,old] of observedVMs){if(!present.has(id)){window.SHC.notify({title:`VM · ${old.name}`,message:'La máquina ya no aparece en el inventario de libvirt.',severity:'info'});observedVMs.delete(id);}}
+  items.forEach(vm=>{
+    const before=observedVMs.get(vm.id);
+    const signature=JSON.stringify([vm.autostart,vm.vcpus,vm.memory_bytes,vm.agent_configured,vm.vsock,vm.watchdog,vm.shares,vm.snapshots]);
+    if(!before&&vmBaselineReady)window.SHC.notify({title:`VM · ${vm.name}`,message:`Máquina detectada · ${stateLabel(vm.state)}`,severity:'info'});
+    else if(before&&before.state!==vm.state)window.SHC.notify({title:`VM · ${vm.name}`,message:`Estado: ${stateLabel(before.state)} → ${stateLabel(vm.state)}`,severity:vm.state==='crashed'?'error':'success'});
+    else if(before&&before.signature!==signature)window.SHC.notify({title:`VM · ${vm.name}`,message:'La configuración se actualizó correctamente.',severity:'success'});
+    observedVMs.set(vm.id,{name:vm.name,state:vm.state,signature});
+  });
+  vmBaselineReady=true;
 }
 function renderList() {
   const query = $('vm-search').value.toLocaleLowerCase();
@@ -50,17 +65,15 @@ function renderDetail(vm) {
   document.querySelector('[data-config="watchdog"]').disabled=vm.watchdog.length>0;
   document.querySelector('[data-config="vsock"]').disabled=vm.vsock;
   $('vm-connect').disabled=vm.state!=='running'||!vm.vnc||!!rfb;
+  if(rfb&&!['running','paused'].includes(vm.state))rfb.disconnect();
 }
-async function refresh() {
-  if(busy || document.querySelector('.vm-action-popover:popover-open') || $('vm-dialog').open) return;
-  busy=true;
-  try {
-    if(domain) renderDetail(await api(`/api/vms/${domain}`));
-    else {machines=(await api('/api/vms')).machines;renderList();}
-    setConnection(true);showError(false);
-  } catch(error) {showError(true);message(error.message,true);}
-  finally {busy=false;}
-}
+const live=window.SHC.createLiveRefresh({
+  load:()=>api(domain?`/api/vms/${domain}`:'/api/vms'),
+  render:data=>{observeVMs(domain?[data]:data.machines);if(domain)renderDetail(data);else{machines=data.machines;renderList();}setConnection(true);showError(false);lastRefreshError='';},
+  blocked:()=>document.hidden||!!document.querySelector('.vm-action-popover:popover-open')||$('vm-dialog').open,
+  onError:error=>{showError(true);if(lastRefreshError!==error.message)message(error.message,true);lastRefreshError=error.message;},interval:3000
+});
+function refresh(){return live.request(true);}
 const descriptions={start:'Encender la máquina virtual.',shutdown:'Solicitar apagado ordenado al sistema invitado. Puede tardar unos minutos.',reboot:'Solicitar reinicio ordenado del invitado.',pause:'Pausar la ejecución. La memoria permanece reservada en el host.',resume:'Reanudar la ejecución de la máquina.', 'force-off':'Cortar la energía de la VM. Puede perder datos sin guardar o dañar su sistema de archivos.',reset:'Reiniciar inmediatamente la VM. Puede perder datos sin guardar.',autostart:'Cambiar si esta VM se enciende cuando arranca el host.',watchdog:'Agregar watchdog itco con acción reset. Requiere VM apagada y soporte del invitado; se respalda su XML.',vsock:'Agregar VirtIO vsock con CID automático. Requiere VM apagada y controladores compatibles.',agent:'Agregar canal VirtIO de QEMU Guest Agent. Requiere VM apagada. Luego instalá el agente dentro de Windows.',share:'Compartir con Virtiofs un directorio ya preparado en /srv/shc-shares. Requiere VM apagada, virtiofsd en el host y soporte dentro del invitado.',resources:'Cambiar CPU y memoria asignadas. Requiere VM apagada; se respalda su configuración.', 'snapshot-create':'Crear una instantánea de discos qcow2 con la VM apagada. No incluye RAM.', 'snapshot-revert':'Restaurar el estado del disco guardado. Se perderán los cambios posteriores a la instantánea. La VM debe estar apagada.', 'snapshot-delete':'Eliminar esta instantánea guardada. Esta operación no se puede deshacer.'};
 function openAction(id,action,name) {
   pending={id,action,name};
@@ -92,6 +105,7 @@ document.addEventListener('click',event=>{
 $('vm-cancel').onclick=()=>$('vm-dialog').close();
 $('vm-action-form').onsubmit=async event=>{
   event.preventDefault();
+  if(actionBusy)return;
   const form=new FormData(event.target), vm=current||machines.find(item=>item.id===pending.id);
   if(form.has('verify')&&form.get('verify')!==vm.name){message('El nombre de confirmación no coincide.',true);return;}
   const payload={action:pending.action,confirm:true};
@@ -100,9 +114,10 @@ $('vm-action-form').onsubmit=async event=>{
   if(pending.action==='autostart') payload.enabled=form.has('enabled');
   if(pending.action==='share') payload.readonly=form.has('readonly');
   $('vm-confirm').disabled=true;
-  try {const result=await api(`/api/vms/${pending.id}`,payload);$('vm-dialog').close();message(result.message);await refresh();}
+  actionBusy=true;live.pause();
+  try {await api(`/api/vms/${pending.id}`,payload);$('vm-dialog').close();message(`${vm.name}: solicitud enviada. El estado se confirmará automáticamente.`);}
   catch(error){$('vm-dialog').close();message(error.message,true);}
-  finally{$('vm-confirm').disabled=false;}
+  finally{actionBusy=false;$('vm-confirm').disabled=false;await live.resume();}
 };
 if(!domain){$('vm-search').oninput=renderList;$('vm-refresh').onclick=refresh;}
 else {
@@ -112,13 +127,14 @@ else {
     rfb.scaleViewport=true;rfb.resizeSession=false;
     $('vm-console-state').textContent='Conectando…';
     rfb.addEventListener('connect',()=>{$('vm-console-state').textContent='Conectado';$('vm-disconnect').disabled=false;$('vm-send-key').disabled=false;$('vm-connect').disabled=true;});
-    rfb.addEventListener('disconnect',()=>{rfb=null;$('vm-console-state').textContent='Consola desconectada';$('vm-disconnect').disabled=true;$('vm-send-key').disabled=true;$('vm-connect').disabled=false;});
+    rfb.addEventListener('disconnect',()=>{rfb=null;$('vm-console-state').textContent='Consola desconectada';$('vm-disconnect').disabled=true;$('vm-send-key').disabled=true;$('vm-connect').disabled=!current||current.state!=='running'||!current.vnc;});
     rfb.addEventListener('credentialsrequired',()=>{message('Esta consola requiere contraseña VNC. Configurala desde el hipervisor; no se guarda en el panel.',true);rfb.disconnect();});
   };
   $('vm-disconnect').onclick=()=>rfb?.disconnect();
   $('vm-send-key').onclick=()=>rfb?.sendCtrlAltDel();
   $('vm-fullscreen').onclick=()=>$('vm-console').requestFullscreen();
 }
-refresh();setInterval(refresh,15000);
+refresh();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)live.request();});
 fetch('/api/snapshot').then(response=>response.json()).then(data=>{if(data.system)setConnection(true,data.system.hostname,data.system.uptime_seconds);}).catch(()=>{});
-window.addEventListener('beforeunload',()=>rfb?.disconnect());
+window.addEventListener('beforeunload',()=>{live.stop();rfb?.disconnect();});

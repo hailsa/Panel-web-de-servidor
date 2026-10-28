@@ -38,6 +38,7 @@ $('create-submit').onclick=async()=>{
   if(busy||!$('create-confirm-check').checked)return;busy=true;error('');$('create-submit').disabled=true;$('create-back').disabled=true;$('create-submit').textContent='Creando…';
   try{
     const result=await api('create',{...payload,confirm:true});
+    window.SHC.notify({title:`VM · ${result.name}`,message:result.started?'Máquina creada y encendida.':'Máquina creada y apagada, lista para configurar.',severity:'success'});
     $('create-success-copy').textContent=`${result.name} se creó ${result.started?'y está encendida':'y quedó apagada'}.`;
     $('create-success-warnings').innerHTML=result.warnings.map(warning=>`<p>${esc(warning)}</p>`).join('');
     $('create-open').href='/maquinas-virtuales/'+result.id;step('done');

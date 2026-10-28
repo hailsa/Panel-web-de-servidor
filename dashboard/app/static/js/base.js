@@ -109,8 +109,11 @@ powerDialog.addEventListener('close', async () => {
 
 const NOTIFICATION_KEY = 'shc-notifications-v1';
 const STATE_KEY = 'shc-monitor-state-v1';
-let notifications = JSON.parse(localStorage.getItem(NOTIFICATION_KEY) || '[]');
-let priorState = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+function readSaved(key,fallback){try{return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));}catch(_){return fallback;}}
+function save(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(_){/* History remains available for this page if storage is disabled. */}}
+let notifications = readSaved(NOTIFICATION_KEY,[]);
+if(!Array.isArray(notifications))notifications=[];
+let priorState = readSaved(STATE_KEY,{});
 const notificationId = (kind, target) => `${kind}:${target}`;
 const addNotification = (kind, severity, title, message) => {
   const id = notificationId(kind, title);
@@ -120,18 +123,35 @@ const addNotification = (kind, severity, title, message) => {
   notifications = notifications.slice(0, 50);
 };
 const resolveMissing = activeIds => notifications.forEach(item => {
-  if (!activeIds.has(item.id) && !item.resolved) { item.resolved = true; item.updatedAt = Date.now(); }
+  if (!item.activity && !activeIds.has(item.id) && !item.resolved) { item.resolved = true; item.updatedAt = Date.now(); }
 });
 const renderNotifications = () => {
-  const active = notifications.filter(item => !item.resolved);
-  $('notification-badge').textContent = active.length;
-  $('notification-badge').classList.toggle('hidden', active.length === 0);
-  $('notification-summary').textContent = active.length ? `${active.length} activa${active.length === 1 ? '' : 's'}` : 'Todo funciona normalmente';
+  const active = notifications.filter(item => !item.activity&&!item.resolved);
+  const unread=notifications.filter(item=>item.activity&&!item.read).length;
+  $('notification-badge').textContent = active.length+unread;
+  $('notification-badge').classList.toggle('hidden', active.length+unread === 0);
+  $('notification-summary').textContent = `${active.length} alertas activas · ${unread} nuevas · ${notifications.filter(item=>item.activity).length} eventos`;
   $('notification-list').innerHTML = notifications.length ? notifications.map(item => `
-    <article class="notification-item ${item.severity} ${item.resolved ? 'resolved' : ''}">
+    <article class="notification-item ${item.severity} ${item.resolved ? 'resolved' : ''} ${item.activity&&!item.read?'unread':''}">
       <i></i><div><strong>${esc(item.title)}</strong><p>${esc(item.message)}</p><time>${new Intl.DateTimeFormat('es-AR', {dateStyle:'short', timeStyle:'short'}).format(item.createdAt)}</time></div>
-    </article>`).join('') : '<p class="notification-empty">No hay incidencias activas.</p>';
-  localStorage.setItem(NOTIFICATION_KEY, JSON.stringify(notifications));
+    </article>`).join('') : '<p class="notification-empty">No hay notificaciones guardadas.</p>';
+  save(NOTIFICATION_KEY,notifications);
+};
+window.SHC.notify=({title='Actividad',message='',severity='info',toast=true}={})=>{
+  const now=Date.now();
+  const item={id:`activity:${now}:${Math.random().toString(36).slice(2)}`,activity:true,read:false,
+    severity:['info','success','warning','error'].includes(severity)?severity:'info',title,message,
+    createdAt:now,updatedAt:now,resolved:false};
+  notifications.unshift(item);notifications=notifications.slice(0,50);renderNotifications();
+  const stack=$('notification-toasts');
+  if(!toast||!stack)return item.id;
+  const notice=document.createElement('article');notice.className=`notification-toast ${item.severity}`;
+  const copy=document.createElement('div'),heading=document.createElement('strong'),body=document.createElement('p'),close=document.createElement('button');
+  heading.textContent=title;body.textContent=message;close.type='button';close.textContent='×';close.setAttribute('aria-label','Cerrar aviso');
+  copy.append(heading,body);notice.append(copy,close);stack.prepend(notice);
+  const dismiss=()=>notice.remove();close.onclick=dismiss;setTimeout(dismiss,5000);
+  while(stack.children.length>3)stack.lastElementChild.remove();
+  return item.id;
 };
 const evaluateAlerts = data => {
   const active = new Set();
@@ -162,7 +182,7 @@ const evaluateAlerts = data => {
   if (data.smart?.available && data.smart?.healthy === false) alert('smart', 'critical', 'Riesgo en unidad física', data.smart.reason || 'SMART informa un estado no saludable.');
   resolveMissing(active);
   priorState = {collectedAt: data.collected_at, docker: data.docker, virtualMachines: data.virtual_machines};
-  localStorage.setItem(STATE_KEY, JSON.stringify(priorState));
+  save(STATE_KEY,priorState);
   renderNotifications();
 };
 async function refreshNotifications() {
@@ -182,6 +202,7 @@ notificationButton.onclick = event => {
   const opening = notificationPanel.classList.contains('hidden');
   notificationPanel.classList.toggle('hidden', !opening);
   notificationButton.setAttribute('aria-expanded', String(opening));
+  if(opening){notifications.forEach(item=>{if(item.activity)item.read=true;});renderNotifications();}
 };
 $('clear-notifications').onclick = () => { notifications = []; renderNotifications(); };
 document.addEventListener('click', event => {

@@ -2,7 +2,9 @@
 const {$,size,esc,row,setConnection,showError}=window.SHC;
 const containerId=document.querySelector('.docker-page').dataset.containerId;
 const stateNames={running:'En ejecución',exited:'Detenido',paused:'Pausado',created:'Creado',restarting:'Reiniciando',dead:'Falló',removing:'Eliminándose'};
-let inventory=null, current=null, pending=null, busy=false;
+let inventory=null, current=null, pending=null, actionBusy=false,lastRefreshError='';
+const observedContainers=new Map();
+let dockerBaselineReady=false;
 const nameOf=state=>stateNames[state]||state;
 const date=value=>value&&!value.startsWith('0001')?new Date(value).toLocaleString('es-AR'):'—';
 const portText=port=>port.bindings.length?port.bindings.map(binding=>`${binding.HostIp||'*'}:${binding.HostPort} → ${port.destination}`).join(' · '):`${port.destination} (interno)`;
@@ -22,7 +24,20 @@ async function request(path,payload){
   if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'Docker no respondió correctamente');
   return result;
 }
-function message(text,error=false){$('docker-message').textContent=text;$('docker-message').classList.remove('hidden');$('docker-message').classList.toggle('vm-message-error',error);}
+function message(text,error=false){window.SHC.notify({title:error?'No se pudo completar la acción':'Docker',message:text,severity:error?'error':'info'});}
+function observeContainers(items){
+  const present=new Set(items.map(item=>item.id));
+  for(const [id,old] of observedContainers){if(!present.has(id)){window.SHC.notify({title:`Docker · ${old.name}`,message:'El contenedor ya no aparece en el inventario.',severity:'info'});observedContainers.delete(id);}}
+  items.forEach(item=>{
+    const before=observedContainers.get(item.id);
+    const signature=JSON.stringify([item.health,item.restart_policy,item.restart_count,item.started_at]);
+    if(!before&&dockerBaselineReady)window.SHC.notify({title:`Docker · ${item.name}`,message:`Contenedor detectado · ${nameOf(item.state)}`,severity:'info'});
+    else if(before&&before.state!==item.state)window.SHC.notify({title:`Docker · ${item.name}`,message:`Estado: ${nameOf(before.state)} → ${nameOf(item.state)}`,severity:item.state==='dead'?'error':'success'});
+    else if(before&&before.signature!==signature)window.SHC.notify({title:`Docker · ${item.name}`,message:`Estado: ${nameOf(item.state)} · salud: ${item.health} · política: ${item.restart_policy}`,severity:item.health==='unhealthy'?'warning':'success'});
+    observedContainers.set(item.id,{name:item.name,state:item.state,signature});
+  });
+  dockerBaselineReady=true;
+}
 function renderInventory(){
   const query=$('docker-search').value.toLocaleLowerCase(),state=$('docker-state').value;
   $('docker-total').textContent=inventory.containers.length;
@@ -55,12 +70,11 @@ function renderDetail(item){
   $('docker-mounts').innerHTML=item.mounts.map(mount=>`<tr><td>${esc(mount.Type)}</td><td class="vm-source" title="${esc(mount.Source)}">${esc(mount.Name||mount.Source)}</td><td>${esc(mount.Destination)}</td><td>${mount.RW?'Lectura / escritura':'Sólo lectura'}</td></tr>`).join('')||'<tr><td colspan="4">Sin montajes</td></tr>';
   $('docker-processes').innerHTML=item.processes.map(process=>row(process[0],process[1]||'')).join('')||`<p class="muted">${esc(item.processes_reason)}</p>`;
 }
-async function refresh(){
-  if(busy||$('docker-dialog').open)return;
-  busy=true;
-  try{if(containerId)renderDetail(await request(`/api/docker/${containerId}`));else{inventory=await request('/api/docker');renderInventory();}showError(false);setConnection(true);}
-  catch(error){showError(true);message(error.message,true);}finally{busy=false;}
-}
+const live=window.SHC.createLiveRefresh({load:()=>request(containerId?`/api/docker/${containerId}`:'/api/docker'),
+  render:data=>{observeContainers(containerId?[data]:data.containers);if(containerId)renderDetail(data);else{inventory=data;renderInventory();}showError(false);setConnection(true);lastRefreshError='';},
+  blocked:()=>document.hidden||$('docker-dialog').open,
+  onError:error=>{showError(true);if(lastRefreshError!==error.message)message(error.message,true);lastRefreshError=error.message;},interval:3000});
+function refresh(){return live.request(true);}
 function selectAction(id,action){
   const item=current||inventory.containers.find(container=>container.id===id);
   pending={id,action,name:item.name};
@@ -72,18 +86,20 @@ function selectAction(id,action){
 document.addEventListener('click',event=>{const button=event.target.closest('[data-docker-action]');if(button)selectAction(button.dataset.id,button.dataset.dockerAction);});
 $('docker-cancel').onclick=()=>$('docker-dialog').close();
 $('docker-action-form').onsubmit=async event=>{
-  event.preventDefault();const fields=new FormData(event.target),payload={action:pending.action,confirm:true};
+  event.preventDefault();if(actionBusy)return;const fields=new FormData(event.target),payload={action:pending.action,confirm:true};
   for(const [key,value] of fields)payload[key]=value;
   if(pending.action==='kill'&&payload.verify!==pending.name){message('El nombre de confirmación no coincide.',true);return;}
   $('docker-confirm').disabled=true;
-  try{const result=await request(`/api/docker/${pending.id}`,payload);$('docker-dialog').close();message(result.message);await refresh();}
-  catch(error){$('docker-dialog').close();message(error.message,true);}finally{$('docker-confirm').disabled=false;}
+  actionBusy=true;live.pause();
+  try{const result=await request(`/api/docker/${pending.id}`,payload);$('docker-dialog').close();message(`${pending.name}: ${result.message}`);}
+  catch(error){$('docker-dialog').close();message(error.message,true);}finally{actionBusy=false;$('docker-confirm').disabled=false;await live.resume();}
 };
 if(containerId){
   $('docker-policy').onclick=()=>selectAction(containerId,'restart-policy');
   $('docker-logs-refresh').onclick=async()=>{const button=$('docker-logs-refresh');button.disabled=true;try{const logs=await request(`/api/docker/${containerId}/logs`);$('docker-logs').textContent=logs.text||'No hay logs recientes.';}catch(error){message(error.message,true);}finally{button.disabled=false;}};
   $('docker-logs-clear').onclick=()=>$('docker-logs').textContent='Vista de logs limpiada.';
 }else{$('docker-search').oninput=renderInventory;$('docker-state').onchange=renderInventory;$('docker-refresh').onclick=refresh;$('docker-show-untagged').onchange=renderInventory;}
-refresh();setInterval(refresh,10000);
+refresh();document.addEventListener('visibilitychange',()=>{if(!document.hidden)live.request();});
+window.addEventListener('beforeunload',()=>live.stop());
 fetch('/api/snapshot').then(response=>response.json()).then(data=>{if(data.system)setConnection(true,data.system.hostname,data.system.uptime_seconds);}).catch(()=>{});
 })();

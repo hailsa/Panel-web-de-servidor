@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+let tick;
+const context={window:{SHC:{}},setInterval:callback=>{tick=callback;return 1;},clearInterval:()=>{}};
+vm.runInNewContext(fs.readFileSync('dashboard/app/static/js/live_refresh.js','utf8'),context);
+const settle=()=>new Promise(resolve=>setImmediate(resolve));
+(async()=>{
+  const pending=[],rendered=[];
+  let blocked=false;
+  const live=context.window.SHC.createLiveRefresh({load:()=>new Promise(resolve=>pending.push(resolve)),render:data=>rendered.push(data),blocked:()=>blocked});
+  const first=live.request();
+  live.pause();
+  const afterAction=live.resume();
+  assert.equal(pending.length,1,'queries must not overlap');
+  pending[0]('stale state before action');await settle();
+  assert.equal(pending.length,2,'action completion must queue a fresh query');
+  assert.equal(rendered.length,0,'old state must not render after an action');
+  pending[1]('confirmed new state');await Promise.all([first,afterAction]);
+  assert.deepEqual(rendered,['confirmed new state']);
+  blocked=true;await tick();assert.equal(pending.length,2,'open dialogs/hidden pages must pause periodic queries');
+  blocked=false;const next=live.request();pending[2]('external state change');await next;
+  assert.equal(rendered.at(-1),'external state change');
+  live.stop();await live.request();assert.equal(pending.length,3);
+  console.log('Live refresh: stale response, single-flight, action refresh and pause checks OK');
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -31,9 +31,10 @@
         <div class="notification-wrap">
           <button id="notifications" class="icon-button" aria-label="Notificaciones" aria-expanded="false">🔔<span id="notification-badge" class="notification-badge hidden">0</span></button>
           <section id="notification-panel" class="notification-panel hidden" aria-label="Centro de notificaciones">
-            <header><div><strong>Alertas e incidencias</strong><small id="notification-summary">Sin alertas</small></div><button id="clear-notifications" type="button">Limpiar</button></header>
+            <header><div><strong>Notificaciones y actividad</strong><small id="notification-summary">Sin notificaciones</small></div><button id="clear-notifications" type="button">Limpiar</button></header>
             <div id="notification-list" class="notification-list"><p class="notification-empty">No hay incidencias activas.</p></div>
           </section>
+          <div id="notification-toasts" class="notification-toasts" aria-live="polite" aria-relevant="additions"></div>
         </div>
         <button id="power" class="icon-button" aria-label="Opciones de energía" aria-expanded="false">⏻</button>
         <div id="power-menu" class="power-menu hidden">
@@ -67,7 +68,8 @@
     </form>
   </dialog>
   <script src="/static/vendor/xterm/xterm.js"></script>
-  <script src="/static/js/base.js"></script>
+  <script src="/static/js/base.js?v={{ version }}"></script>
+  <script src="/static/js/live_refresh.js?v={{ version }}"></script>
   <script src="/static/js/terminal.js?v={{ version }}"></script>
   {% block scripts %}{% endblock %}
 </body>
