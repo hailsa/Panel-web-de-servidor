@@ -1,0 +1,16 @@
+[Unit]
+Description=SHC validated ISO preparation %i
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/libexec/shc-iso-prepare %i
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_FOWNER
+TimeoutStartSec=20

@@ -18,6 +18,7 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.6.1`: imágenes Docker ordenadas por uso y selector para imágenes sin etiqueta.
 - `v0.7.0`: visor del journal del sistema, con filtros, paginación, detalles y exportación.
 - `v0.8.0`: asistente de creación y configuración inicial de máquinas KVM.
+- `v0.8.1`: explorador de carpetas e ISO del servidor dentro del asistente.
 
 Para cada nueva versión:
 

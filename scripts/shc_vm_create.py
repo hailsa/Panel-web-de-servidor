@@ -1,5 +1,6 @@
 """KVM creation through validated choices and new libvirt volumes only."""
 import datetime
+import errno
 import fcntl
 import hashlib
 import json
@@ -16,6 +17,109 @@ import xml.etree.ElementTree as ET
 ROOT = Path('/var/lib/libvirt/images')
 BOOT = Path('/var/lib/libvirt/boot')
 STATE = Path('/run/shc-vm-creator')
+ISO_CONFIG = Path('/etc/shc-monitor/iso-library.json')
+MEDIA = BOOT/'shc-media'
+
+
+def iso_roots():
+    roots=[ROOT,BOOT]
+    if ISO_CONFIG.is_file():
+        info=ISO_CONFIG.stat()
+        if ISO_CONFIG.is_symlink() or info.st_uid!=0 or info.st_mode&0o022:
+            raise ValueError('La configuración de bibliotecas ISO debe pertenecer a root y no ser modificable por otros usuarios')
+        configured=json.loads(ISO_CONFIG.read_text()).get('roots',[])
+        if not isinstance(configured,list) or len(configured)>20:raise ValueError('Bibliotecas ISO inválidas')
+        roots.extend(Path(path) for path in configured if isinstance(path,str))
+    return list(dict.fromkeys(path.resolve() for path in roots if path.is_absolute() and path.is_dir() and not path.is_symlink()))
+
+
+def library_path(value,directory=False):
+    if not isinstance(value,str) or len(value)>4096 or any(ord(char)<32 for char in value):raise ValueError('Ruta inválida')
+    path=Path(value)
+    if not path.is_absolute() or path.is_symlink():raise ValueError('Elegí una ruta absoluta dentro de las bibliotecas permitidas')
+    try:resolved=path.resolve(strict=True)
+    except OSError:raise ValueError('La ruta no existe o no está disponible')
+    if not any(resolved.is_relative_to(base) for base in iso_roots()):raise ValueError('La ruta está fuera de las bibliotecas ISO permitidas')
+    if directory:
+        if not resolved.is_dir():raise ValueError('La carpeta no existe')
+    elif not resolved.is_file() or resolved.suffix.lower()!='.iso':raise ValueError('Elegí un archivo ISO existente')
+    return resolved
+
+
+def browse_isos(payload):
+    roots=iso_roots()
+    if not payload.get('path'):
+        return {'path':'','parent':None,'roots':[{'name':path.name,'path':str(path)} for path in roots],
+                'entries':[{'name':path.name,'path':str(path),'kind':'directory'} for path in roots],'truncated':False}
+    path=library_path(payload['path'],directory=True)
+    query=payload.get('search','')
+    if not isinstance(query,str) or len(query)>100:raise ValueError('Búsqueda inválida')
+    entries=[];scanned=0;truncated=False
+    with os.scandir(path) as children:
+        for child in children:
+            scanned+=1
+            if scanned>5000:truncated=True;break
+            if child.is_symlink():continue
+            if Path(child.path)==MEDIA:continue
+            directory=child.is_dir(follow_symlinks=False)
+            if not directory and (not child.is_file(follow_symlinks=False) or Path(child.name).suffix.lower()!='.iso'):continue
+            if query.casefold() not in child.name.casefold():continue
+            entries.append({'name':child.name,'path':str(path/child.name),'kind':'directory' if directory else 'iso',
+                            'size_bytes':None if directory else child.stat(follow_symlinks=False).st_size})
+            if len(entries)>=500:truncated=True;break
+    parent=path.parent if path not in roots and any(path.parent.is_relative_to(root) for root in roots) else None
+    return {'path':str(path),'parent':str(parent) if parent else None,'entries':sorted(entries,key=lambda entry:(entry['kind']!='directory',entry['name'].casefold())),
+            'roots':[{'name':root.name,'path':str(root)} for root in roots],'truncated':truncated}
+
+
+def validate_iso(path):
+    if not path:return ''
+    return str(library_path(path))
+
+
+def link_media(path):
+    if not path:return ''
+    source=library_path(path)
+    # These system paths are already in libvirt's media area.
+    if source.is_relative_to(ROOT) or source.is_relative_to(BOOT):
+        return str(source)
+    MEDIA.mkdir(mode=0o755,exist_ok=True)
+    if MEDIA.is_symlink() or MEDIA.stat().st_uid!=0 or MEDIA.stat().st_mode&0o022:raise ValueError('Directorio de medios inválido')
+    descriptor=os.open(source,os.O_RDONLY|os.O_NOFOLLOW)
+    try:
+        info=os.fstat(descriptor)
+        actual=Path(os.readlink(f'/proc/self/fd/{descriptor}'))
+        if not stat.S_ISREG(info.st_mode) or not any(actual.is_relative_to(root) for root in iso_roots()):raise ValueError('La ISO cambió de ruta; volvé a seleccionarla')
+        if not info.st_mode&0o004:raise ValueError('La ISO necesita permiso de lectura para QEMU; no se modificaron sus permisos')
+        if info.st_dev!=MEDIA.stat().st_dev:raise ValueError('La ISO está en otro sistema de archivos. Copiala a /var/lib/libvirt/boot para montarla desde el panel')
+        key=hashlib.sha256(f'{source}:{info.st_dev}:{info.st_ino}:{info.st_size}:{info.st_mtime_ns}'.encode()).hexdigest()
+        target=MEDIA/(key+'.iso')
+        try:os.link(source,target,follow_symlinks=False)
+        except FileExistsError:pass
+        linked=target.lstat()
+        if not stat.S_ISREG(linked.st_mode) or linked.st_dev!=info.st_dev or linked.st_ino!=info.st_ino:
+            raise ValueError('El medio preparado no coincide con la ISO; requiere revisión')
+        return str(target)
+    finally:os.close(descriptor)
+
+
+def prepare_media(path):
+    try:return link_media(path)
+    except OSError as exc:
+        if exc.errno!=errno.EXDEV:raise
+    # ReadWritePaths uses separate bind mounts in the collector namespace.
+    # A fixed root-owned oneshot performs the validated link on the host.
+    jobs=STATE/'iso-jobs'
+    jobs.mkdir(mode=0o700,exist_ok=True)
+    identity=str(uuid.uuid4())
+    job=jobs/(identity+'.json')
+    job.write_text(json.dumps({'source':path}));job.chmod(0o600)
+    result=subprocess.run(['/usr/bin/systemctl','start','shc-iso-prepare@'+identity+'.service'],
+                          capture_output=True,text=True,timeout=20)
+    response=json.loads(job.read_text()).get('result',{})
+    if result.returncode or not response.get('path'):
+        raise ValueError(response.get('error','No se pudo preparar la ISO para QEMU'))
+    return response['path']
 
 
 def virsh(*args):
@@ -59,7 +163,7 @@ def creation_options():
         networks.append({'id':net_id,'name':name,'mode':forward.get('mode') if forward is not None else 'isolated'})
     isos={}
     scanned=0
-    for base in (ROOT,BOOT):
+    for base in iso_roots():
         if not base.is_dir():continue
         for current,dirs,files in os.walk(base,followlinks=False):
             dirs[:]=[name for name in dirs if not (Path(current)/name).is_symlink() and len((Path(current)/name).relative_to(base).parts)<=4]
@@ -67,14 +171,14 @@ def creation_options():
                 scanned+=1
                 path=Path(current)/name
                 if scanned>3000:break
-                if name.lower().endswith('.iso') and not path.is_symlink() and path.is_file() and ',' not in str(path):
+                if name.lower().endswith('.iso') and not path.is_symlink() and path.is_file() and not path.is_relative_to(MEDIA):
                     isos[str(path)]={'path':str(path),'name':name,'size_bytes':path.stat().st_size}
             if scanned>3000:break
     return {'ready':bool(pools) and Path('/usr/bin/virt-install').exists(),
             'cpus':os.cpu_count() or 1,'memory_total_mib':memory['MemTotal']//1048576,
             'memory_available_mib':memory['MemAvailable']//1048576,
             'reserve_mib':1024,'pools':pools,'networks':networks,
-            'isos':list(isos.values())[:200],
+            'isos':list(isos.values())[:200],'iso_roots':[str(path) for path in iso_roots()],
             'uefi':Path('/usr/share/OVMF/OVMF_CODE_4M.fd').exists(),
             'tpm':shutil.which('swtpm') is not None}
 
@@ -106,9 +210,9 @@ def validate(payload,options):
     if payload.get('network'):
         network=next((item for item in options['networks'] if item['id']==payload['network']),None)
         if network is None:raise ValueError('La red seleccionada no está activa')
-    iso_paths={item['path'] for item in options['isos']}
     iso,drivers=payload.get('iso',''),payload.get('drivers_iso','')
-    if iso and iso not in iso_paths or drivers and drivers not in iso_paths:raise ValueError('Elegí una ISO existente de la biblioteca permitida')
+    for selected in (iso,drivers):
+        if selected:validate_iso(selected)
     tpm=boolean(payload,'tpm')
     secure_boot=boolean(payload,'secure_boot')
     if tpm and (not options['tpm'] or firmware!='uefi'):raise ValueError('TPM 2.0 necesita UEFI y swtpm en el host')
@@ -138,14 +242,22 @@ def generate_xml(plan):
              '--disk',f"path={disk_path(plan)},size={plan['disk_gib']},format=qcow2,bus={plan['disk_bus']}",
              '--network',f"network={plan['network']['name']},model={plan['network_model']}" if plan['network'] else 'none',
              '--graphics','vnc,listen=127.0.0.1','--video','vga','--noautoconsole','--print-xml','--dry-run']
-    for iso in [plan['iso'],plan['drivers_iso']]:
-        if iso:command+=['--disk',f'path={iso},device=cdrom,bus=sata,readonly=on']
     if plan['agent']:command+=['--channel','unix,target.type=virtio,target.name=org.qemu.guest_agent.0']
     if plan['tpm']:command+=['--tpm','backend.type=emulator,backend.version=2.0,model=tpm-crb']
     result=subprocess.run(command,text=True,capture_output=True,timeout=30,env={'PATH':'/usr/bin:/bin','LC_ALL':'C'})
     if result.returncode:raise ValueError(result.stderr.strip()[:600] or 'No se pudo generar la configuración KVM')
     root=ET.fromstring(result.stdout)
     if root.findtext('uuid')!=plan['id'] or root.findtext('name')!=plan['name']:raise ValueError('La configuración generada no coincide')
+    devices=root.find('devices')
+    for index,iso in enumerate([plan['iso'],plan['drivers_iso']]):
+        if not iso:continue
+        disk=ET.SubElement(devices,'disk',type='file',device='cdrom')
+        ET.SubElement(disk,'driver',name='qemu',type='raw')
+        ET.SubElement(disk,'source',file=iso)
+        ET.SubElement(disk,'target',dev='sdb' if index==0 else 'sdc',bus='sata')
+        ET.SubElement(disk,'readonly')
+    if (plan['iso'] or plan['drivers_iso']) and not devices.findall("controller[@type='sata']"):
+        ET.SubElement(devices,'controller',type='sata',index='0')
     if plan['profile']=='windows':
         clock=root.find('clock')
         if clock is not None:clock.set('offset','localtime')
@@ -187,6 +299,8 @@ def create(payload):
             return previous['result']
         plan=validate(payload,creation_options())
         ensure_unused(plan)
+        plan['iso']=prepare_media(plan['iso'])
+        plan['drivers_iso']=prepare_media(plan['drivers_iso'])
         xml=generate_xml(plan)
         volume=Path(disk_path(plan)).name
         backup=Path('/var/backups/shc-monitor/vm-created')

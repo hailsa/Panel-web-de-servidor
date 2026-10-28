@@ -24,7 +24,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.8.0"
+APP_VERSION = "v0.8.1"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -170,7 +170,7 @@ async def vm_creation_options():
 
 @app.post('/api/vm-creation/{operation}')
 async def vm_creation_action(operation: str,request: Request):
-    if operation not in {'preview','create'}:return JSONResponse({'detail':'Operación inválida'},status_code=400)
+    if operation not in {'preview','create','browse'}:return JSONResponse({'detail':'Operación inválida'},status_code=400)
     payload=await request.json()
     if not isinstance(payload,dict):return JSONResponse({'detail':'Solicitud inválida'},status_code=400)
     if operation=='create' and request.headers.get('x-shc-action')!='confirm':return JSONResponse({'detail':'Confirmación requerida'},status_code=403)

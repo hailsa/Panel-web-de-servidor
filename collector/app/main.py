@@ -78,6 +78,12 @@ def vm_creation_preview(payload: dict):
     return vm_request(payload)
 
 
+@app.post('/v1/vm-creation/browse',dependencies=[Depends(require_token)])
+def vm_iso_browse(payload: dict):
+    payload['action']='browse-isos'
+    return vm_request(payload)
+
+
 @app.post('/v1/vm-creation/create',dependencies=[Depends(require_token)])
 def vm_creation_create(payload: dict):
     payload['action']='create'

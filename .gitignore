@@ -3,6 +3,7 @@
 *.env
 !*.env.example
 config/config.yml
+config/iso-library.json
 secrets/
 
 # Runtime state

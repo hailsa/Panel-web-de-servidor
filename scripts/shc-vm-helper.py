@@ -143,8 +143,9 @@ def save_config(domain, root):
 
 def handle(request):
     action = request.get("action")
-    if action in {'create-options','create-preview','create'}:
-        from shc_vm_create import creation_options, preview, create
+    if action in {'create-options','create-preview','create','browse-isos'}:
+        from shc_vm_create import creation_options, preview, create, browse_isos
+        if action=='browse-isos':return browse_isos(request)
         if action=='create-options':return creation_options()
         if action=='create-preview':return preview(request)
         return create(request)

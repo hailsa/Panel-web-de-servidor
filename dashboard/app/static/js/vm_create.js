@@ -1,6 +1,7 @@
 (() => {
 const {$,size,esc,setConnection}=window.SHC;
 let options=null,payload=null,busy=false,requestId=crypto.randomUUID();
+let isoTarget='create-iso',browserPath='',browserParent=null,browserEntries=[],browserLoading=false;
 function error(message){$('create-error').textContent=message;$('create-error').classList.toggle('hidden',!message);}
 async function api(operation,data){
   const response=await fetch('/api/vm-creation/'+operation,{cache:'no-store',...(data?{method:'POST',headers:{'Content-Type':'application/json','X-SHC-Action':'confirm'},body:JSON.stringify(data)}:{})});
@@ -48,6 +49,41 @@ $('create-profile').onchange=()=>{
   $('create-profile-help').textContent=windows?'Windows usa disco SATA y red e1000e para instalar sin exigir drivers VirtIO. El sistema operativo se instala desde VNC.':'Linux usa almacenamiento y red VirtIO. La instalación se realiza después desde VNC.';
 };
 ['create-pool','create-network','create-firmware'].forEach(id=>$(id).onchange=help);
+function renderBrowser(){
+  const query=$('iso-browser-search').value.toLocaleLowerCase();
+  const items=browserEntries.filter(item=>item.name.toLocaleLowerCase().includes(query));
+  $('iso-browser-entries').innerHTML=items.map((item,index)=>`<button type="button" class="iso-browser-entry" data-iso-path="${esc(item.path)}" data-iso-kind="${item.kind}"><span class="iso-file-icon">${item.kind==='directory'?'▰':'◉'}</span><span><strong>${esc(item.name)}</strong><small>${esc(item.path)}</small></span><span>${item.kind==='directory'?'Abrir →':size(item.size_bytes)}</span></button>`).join('')||'<p class="empty">No hay carpetas o archivos ISO que coincidan.</p>';
+}
+async function browse(path=''){
+  if(browserLoading)return;browserLoading=true;$('iso-browser-error').classList.add('hidden');$('iso-browser-entries').setAttribute('aria-busy','true');
+  try{
+    const result=await api('browse',{path});browserPath=result.path;browserParent=result.parent;browserEntries=result.entries;
+    $('iso-browser-path').value=browserPath;$('iso-browser-up').disabled=!browserParent;
+    $('iso-browser-roots').innerHTML='<button type="button" data-iso-root="">Bibliotecas</button>'+result.roots.map(root=>`<button type="button" data-iso-root="${esc(root.path)}">${esc(root.name)}</button>`).join('');
+    $('iso-browser-search').value='';renderBrowser();
+    $('iso-browser-notice').textContent=result.truncated?'La carpeta tiene más resultados que el límite de la vista. Usá una subcarpeta para encontrar la ISO.':'Elegí una carpeta para abrirla o una ISO para seleccionarla. Sólo se muestran archivos del servidor.';
+  }catch(exc){$('iso-browser-error').textContent=exc.message;$('iso-browser-error').classList.remove('hidden');}
+  finally{browserLoading=false;$('iso-browser-entries').setAttribute('aria-busy','false');}
+}
+document.querySelectorAll('[data-browse-iso]').forEach(button=>button.onclick=()=>{
+  isoTarget=button.dataset.browseIso;$('iso-browser-target').textContent=isoTarget==='create-iso'?'Medio de instalación del sistema operativo':'Medio adicional de controladores';
+  $('iso-browser').showModal();browse(browserPath);
+});
+$('iso-browser-close').onclick=()=>$('iso-browser').close();
+$('iso-browser-path-form').onsubmit=event=>{event.preventDefault();browse($('iso-browser-path').value.trim());};
+$('iso-browser-search').oninput=renderBrowser;
+$('iso-browser-up').onclick=()=>{if(browserParent)browse(browserParent);};
+$('iso-browser-refresh').onclick=()=>browse(browserPath);
+$('iso-browser').addEventListener('click',event=>{
+  const root=event.target.closest('[data-iso-root]');if(root){browse(root.dataset.isoRoot);return;}
+  const entry=event.target.closest('[data-iso-path]');if(!entry||browserLoading)return;
+  if(entry.dataset.isoKind==='directory'){browse(entry.dataset.isoPath);return;}
+  const selected=browserEntries.find(item=>item.path===entry.dataset.isoPath);
+  if(!selected)return;
+  const dropdown=$(isoTarget);
+  if(!Array.from(dropdown.options).some(option=>option.value===selected.path))dropdown.add(new Option(`${selected.name} · ${size(selected.size_bytes)} · ${selected.path}`,selected.path));
+  dropdown.value=selected.path;$('iso-browser').close();
+});
 async function load(){
   try{
     options=await api('options');

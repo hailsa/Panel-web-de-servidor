@@ -1,2 +1,3 @@
 d /run/shc-vm-creator 0700 root root -
 d /var/backups/shc-monitor/vm-created 0700 root root -
+d /var/lib/libvirt/boot/shc-media 0755 root root -
