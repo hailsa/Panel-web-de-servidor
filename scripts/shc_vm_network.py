@@ -64,9 +64,10 @@ def interface_details(node, addresses):
     source = node.find('source')
     found, seen = [], set()
     for item in addresses:
-        if item['mac'] == mac.lower() and item['address'] not in seen:
+        address_key = str(ipaddress.ip_interface(item['address']).ip)
+        if item['mac'] == mac.lower() and address_key not in seen:
             found.append(item)
-            seen.add(item['address'])
+            seen.add(address_key)
     return {'type': node.get('type'), 'mac': mac, 'model': attribute('model', 'type'),
             'source': dict(source.attrib) if source is not None else {}, 'addresses': found,
             'link_state': attribute('link', 'state', 'up'), 'mtu': attribute('mtu', 'size'),

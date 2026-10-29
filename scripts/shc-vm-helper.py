@@ -76,6 +76,8 @@ def inventory(domain, detail=False):
         for source_type in ((['agent'] if agent_configured and state == 'running' else []) + ['lease', 'arp']):
             output = optional('domifaddr', '--domain', domain, '--full', '--source', source_type)
             addresses.extend(parse_addresses(output, source_type))
+        from shc_vm_discovery import discover_addresses
+        addresses.extend(discover_addresses(root, domain, addresses))
     for interface in root.findall("devices/interface"):
         result['interfaces'].append(interface_details(interface, addresses))
     for name in optional("snapshot-list", "--domain", domain, "--name").splitlines():

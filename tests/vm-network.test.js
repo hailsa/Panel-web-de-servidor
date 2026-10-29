@@ -11,6 +11,10 @@ assert.equal((ui.addressHTML(guest).match(/192\.0\.2\.24/g)||[]).length,1,'overv
 assert.match(ui.addressHTML(guest),/Guest Agent/);
 assert.match(ui.addressHTML({state:'running',interfaces:[]}),/No detectada/);
 assert.match(ui.addressHTML({state:'shut off',interfaces:[]}),/VM apagada/);
+const observed=ui.addressHTML({state:'running',interfaces:[{addresses:[{address:'192.0.2.24/32',source:'traffic',prefix_known:false,observed_at:1700000000}]}]});
+assert.match(observed,/Tráfico observado/);
+assert.match(observed,/última vez/);
+assert.ok(!observed.includes('/32'),'passive observations must not invent the guest subnet mask');
 assert.match(ui.addressHTML({state:'running',interfaces:[{addresses:[{address:'<script>',source:'arp'}]}]}),/&lt;script&gt;/);
 assert.match(ui.connectionLabel({type:'direct',source:{dev:'eth0',mode:'bridge'}}),/puente directo.*eth0/);
 const form=ui.editor(guest,{type:'network',source:{network:'default'},model:'e1000e',mac:'52:54:00:11:22:33'}, {models:['e1000e','virtio']});

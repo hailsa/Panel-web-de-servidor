@@ -4,6 +4,8 @@ En **Máquinas virtuales → nombre de la VM**, la visión general y la tabla de
 
 Para mejorar la detección de IP fijas, agregá el canal QEMU Guest Agent con la VM apagada e instalá/activá el agente dentro del invitado. El canal por sí solo no instala el servicio de Windows o Linux.
 
+Desde v0.9.2 se usa también un muestreo pasivo y acotado de cabeceras ARP/IPv4/IPv6, asociadas a la MAC de origen de cada placa de la VM. Esto permite detectar IP fijas con macvtap aunque el host no pueda comunicarse directamente con el invitado. Generar tráfico desde la VM, o hacer ping desde otra PC de la LAN mientras el detalle está abierto, permite observarla. Si la VM está silenciosa, no se garantiza descubrimiento inmediato; Guest Agent sigue siendo la fuente preferida. Las observaciones muestran fecha, se conservan hasta una hora y caducan al cambiar la conexión o la instancia de ejecución. Una IP observada no equivale a confirmar la configuración del invitado ni su máscara. No se guardan paquetes ni contenido de aplicaciones.
+
 ## Editar o agregar una placa
 
 En **Interfaces de red → Editar**, o **Agregar interfaz**, se abre un diálogo sobre la página con:
@@ -38,3 +40,5 @@ Referencias: [formato de interfaces de libvirt](https://libvirt.org/formatdomain
 El helper necesita `scripts/shc_vm_network.py` instalado como `/usr/local/libexec/shc_vm_network.py`, junto a `shc-vm-helper` y `shc_vm_create.py`. El archivo debe pertenecer a root y no permitir escritura al usuario del collector (`root:root`, modo 0644). No se agrega ninguna regla sudo ni se cambia el alcance de permisos del helper.
 
 El drop-in `systemd/shc-vm-create.conf` permite escribir en el directorio privado de respaldo de XML; `systemd/shc-vm-create.tmpfiles` lo prepara como root. Se mantiene `ProtectSystem=strict` y no se habilita escritura general en `/var/backups`.
+
+La detección pasiva requiere además `scripts/shc_vm_discovery.py` junto al helper, con propietario root y modo 0644. El directorio temporal `/run/shc-vm-network` se prepara como root con modo 0700 mediante los mismos archivos de systemd/tmpfiles. El helper privilegiado existente realiza el muestreo; el dashboard no obtiene sockets de red sin procesar ni permisos adicionales.

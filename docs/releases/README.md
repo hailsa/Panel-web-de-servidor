@@ -22,6 +22,7 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.8.2`: actualización automática de estados VM/Docker y avisos temporales con historial en la campana.
 - `v0.9.0`: IP en la visión general y editor de interfaces de VM con acceso a la LAN.
 - `v0.9.1`: explicaciones al pasar el mouse o enfocar opciones de VM deshabilitadas.
+- `v0.9.2`: detección pasiva de IP fijas en VM sin agente, incluso con macvtap.
 
 Para cada nueva versión:
 

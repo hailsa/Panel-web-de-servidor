@@ -1,15 +1,15 @@
 /* Network presentation shared by the VM overview and its modal editor. */
 (() => {
 const {esc}=window.SHC;
-const sourceNames={agent:'Guest Agent',lease:'DHCP de libvirt',arp:'ARP (caché del host)'};
+const sourceNames={agent:'Guest Agent',lease:'DHCP de libvirt',arp:'ARP (caché del host)',traffic:'Tráfico observado de la VM'};
 const typeNames={network:'Red virtual',bridge:'Puente Linux',direct:'Red local · puente directo'};
 function addressHTML(vm){
   const seen=new Set();
   const items=(vm.interfaces||[]).flatMap(net=>net.addresses||[]).filter(item=>{
     if(seen.has(item.address))return false;seen.add(item.address);return true;
   });
-  return items.length?items.map(item=>`<span class="vm-ip">${esc(item.address)} <small>${esc(sourceNames[item.source]||item.source)}${item.link_local?' · enlace local':''}</small></span>`).join(''):
-    `<span class="muted">${vm.state==='shut off'?'VM apagada; sin IP actual':'No detectada'}</span><small class="vm-ip-help">${vm.state==='shut off'?'Se consultará al encenderla.':'Instalá y activá QEMU Guest Agent o revisá DHCP. Una IP fija puede no aparecer sin el agente.'}</small>`;
+  return items.length?items.map(item=>`<span class="vm-ip">${esc(item.prefix_known===false?item.address.split('/')[0]:item.address)} <small>${esc(sourceNames[item.source]||item.source)}${item.link_local?' · enlace local':''}${item.observed_at?` · última vez ${esc(new Date(item.observed_at*1000).toLocaleString('es-AR'))}`:''}</small></span>`).join(''):
+    `<span class="muted">${vm.state==='shut off'?'VM apagada; sin IP actual':'No detectada'}</span><small class="vm-ip-help">${vm.state==='shut off'?'Se consultará al encenderla.':'Sin datos del agente, DHCP ni tráfico reciente. Con IP fija, generá tráfico desde la VM o un ping desde otra PC de la LAN; Guest Agent permite consultarla incluso sin tráfico.'}</small>`;
 }
 function connectionLabel(net){
   return `${typeNames[net.type]||net.type} · ${net.source.network||net.source.bridge||net.source.dev||'Sin origen'}${net.type==='direct'?` (${net.source.mode||'vepa'})`:''}`;
