@@ -24,7 +24,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.8.2"
+APP_VERSION = "v0.9.0"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -255,6 +255,11 @@ async def docker_action(container_id: str,request: Request):
     payload=await request.json()
     if not isinstance(payload,dict):return JSONResponse({'detail':'Solicitud inválida'},status_code=400)
     return await vm_proxy('/v1/docker/'+container_id,payload)
+
+
+@app.get('/api/vm-network-options')
+async def vm_network_options():
+    return await vm_proxy('/v1/vm-network-options')
 
 
 @app.get("/api/vms/{domain}")

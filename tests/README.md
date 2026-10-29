@@ -1,5 +1,7 @@
 # Pruebas
 
+`test_vm_network.py` valida selección de redes existentes, edición y agregado de placas, MAC duplicadas, límites de MTU/colas, preservación de dispositivos y políticas, rechazo de cambios con VM encendida y lectura IPv4/IPv6. Ejecutar con `python -m unittest discover -s tests -p test_vm_network.py`. `node tests/vm-network.test.js` verifica presentación de IP y opciones del editor. Estas pruebas usan datos ficticios y no cambian VM reales.
+
 `test_logout.py` comprueba que el formulario de salida funciona sin encabezado `Origin`, revoca la sesión y rechaza solicitudes sin token CSRF.
 
 `terminal-layout.test.js` comprueba apertura, movimiento, cambio de tamaño y ampliación tanto en escritorio como en una pantalla de teléfono. Ejecutar con `node tests/terminal-layout.test.js`.

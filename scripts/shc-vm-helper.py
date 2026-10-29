@@ -69,21 +69,15 @@ def inventory(domain, detail=False):
             value = capacity.get(key, "").strip()
             storage[key.lower()] = int(value) if value.isdigit() else None
         result["disks"].append(storage)
+    from shc_vm_network import parse_addresses, interface_details
     addresses = []
-    for source_type in ("agent", "lease", "arp"):
-        output = optional("domifaddr", "--domain", domain, "--source", source_type)
-        for line in output.splitlines()[2:]:
-            parts = line.split()
-            if len(parts) >= 4 and parts[2] in {"ipv4", "ipv6"}:
-                addresses.append({"mac": parts[1].lower(), "address": parts[3], "source": source_type})
+    agent_configured = any(node.get('name') == 'org.qemu.guest_agent.0' for node in root.findall('devices/channel/target'))
+    if state in {'running', 'paused'}:
+        for source_type in ((['agent'] if agent_configured and state == 'running' else []) + ['lease', 'arp']):
+            output = optional('domifaddr', '--domain', domain, '--full', '--source', source_type)
+            addresses.extend(parse_addresses(output, source_type))
     for interface in root.findall("devices/interface"):
-        mac = interface.find("mac")
-        address = mac.get("address", "") if mac is not None else ""
-        source, model = interface.find("source"), interface.find("model")
-        result["interfaces"].append({"type": interface.get("type"), "mac": address,
-            "model": model.get("type") if model is not None else "",
-            "source": dict(source.attrib) if source is not None else {},
-            "addresses": [item for item in addresses if item["mac"] == address.lower()]})
+        result['interfaces'].append(interface_details(interface, addresses))
     for name in optional("snapshot-list", "--domain", domain, "--name").splitlines():
         if name:
             result["snapshots"].append({"name": name})
@@ -143,6 +137,9 @@ def save_config(domain, root):
 
 def handle(request):
     action = request.get("action")
+    if action == 'network-options':
+        from shc_vm_network import network_options
+        return network_options(virsh)
     if action in {'create-options','create-preview','create','browse-isos'}:
         from shc_vm_create import creation_options, preview, create, browse_isos
         if action=='browse-isos':return browse_isos(request)
@@ -202,6 +199,20 @@ def handle(request):
                 virsh("snapshot-create", "--domain", domain, file.name, "--atomic", timeout=90)
         else:
             virsh("snapshot-revert" if action.endswith("revert") else "snapshot-delete", "--domain", domain, "--snapshotname", name, timeout=90)
+    elif action in {'network-edit', 'network-add'}:
+        if state != 'shut off':
+            raise ValueError('Apagá la VM antes de modificar sus interfaces de red. No se apagará automáticamente.')
+        from shc_vm_network import network_options, configure_interface
+        root = ET.fromstring(virsh('dumpxml', '--domain', domain, '--inactive'))
+        updated = configure_interface(root, request, network_options(virsh))
+        new_macs = {node.find('mac').get('address').lower() for node in updated.findall('devices/interface') if node.find('mac') is not None}
+        for other in virsh('list', '--all', '--uuid').splitlines():
+            if other == domain:
+                continue
+            other_root = ET.fromstring(virsh('dumpxml', '--domain', str(uuid.UUID(other)), '--inactive'))
+            if any(node.get('address', '').lower() in new_macs for node in other_root.findall('devices/interface/mac')):
+                raise ValueError('Una de las direcciones MAC ya está asignada a otra VM.')
+        save_config(domain, updated)
     elif action in {"watchdog", "vsock", "agent", "share", "resources"}:
         root = ET.fromstring(virsh("dumpxml", "--domain", domain, "--inactive"))
         devices = root.find("devices")

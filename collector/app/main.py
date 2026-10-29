@@ -95,6 +95,11 @@ def vm_detail(domain: str):
     return vm_request({"action": "detail", "id": domain})
 
 
+@app.get('/v1/vm-network-options', dependencies=[Depends(require_token)])
+def vm_network_options():
+    return vm_request({'action': 'network-options'})
+
+
 @app.post("/v1/vms/{domain}", dependencies=[Depends(require_token)])
 def vm_action(domain: str, payload: dict):
     payload["id"] = domain

@@ -13,7 +13,7 @@ def vm_request(payload):
         raise HTTPException(503, "El gestor de máquinas virtuales no está disponible")
     if result.returncode or "error" in data:
         raise HTTPException(409, data.get("error", "Error al consultar libvirt"))
-    if payload.get('action') not in {'list','detail','console','create-options','create-preview','browse-isos'}:
+    if payload.get('action') not in {'list','detail','console','network-options','create-options','create-preview','browse-isos'}:
         from .collectors.virtual_machines import invalidate_virtual_machines
         invalidate_virtual_machines()
     return data
