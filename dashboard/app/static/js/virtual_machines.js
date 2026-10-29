@@ -61,11 +61,22 @@ function renderDetail(vm) {
   $('vm-snapshots').innerHTML=vm.snapshots.map(snapshot=>`<div class="row"><span>${esc(snapshot.name)}</span><div class="vm-actions"><button data-snapshot="${esc(snapshot.name)}" data-config="snapshot-revert">Restaurar</button><button class="danger" data-snapshot="${esc(snapshot.name)}" data-config="snapshot-delete">Eliminar</button></div></div>`).join('')||'<p class="muted">Todavía no hay instantáneas.</p>';
   $('vm-shares').innerHTML=vm.shares.map(share=>row(share.target,`${share.source} · ${share.readonly?'Sólo lectura':'Lectura / escritura'}`)).join('')||'<p class="muted">No hay directorios compartidos.</p>';
   $('vm-guest-services').innerHTML=vm.guest_services.length?vm.guest_services.map(service=>row(service.Name,service.DisplayName,'status')).join(''):`<p class="muted">${esc(vm.guest_services_reason)}</p>`;
-  document.querySelector('[data-config="agent"]').disabled=vm.agent_configured;
-  document.querySelector('[data-config="watchdog"]').disabled=vm.watchdog.length>0;
-  document.querySelector('[data-config="vsock"]').disabled=vm.vsock;
-  $('vm-connect').disabled=vm.state!=='running'||!vm.vnc||!!rfb;
+  updateAvailability();
   if(rfb&&!['running','paused'].includes(vm.state))rfb.disconnect();
+}
+function updateAvailability(){
+  if(!current)return;
+  const vm=current,offline=vm.state!=='shut off'?'Apagá la VM para modificar sus dispositivos o recursos.':'';
+  const unavailable=window.SHC.setUnavailable;
+  unavailable(document.querySelector('[data-config="agent"]'),vm.agent_configured?'Esta VM ya tiene configurado el canal QEMU Guest Agent. No se puede agregar otro. El servicio del agente debe instalarse y activarse dentro del invitado.':offline);
+  unavailable(document.querySelector('[data-config="watchdog"]'),vm.watchdog.length?'Esta VM ya tiene un watchdog configurado. No se puede agregar un segundo desde el panel.':offline);
+  unavailable(document.querySelector('[data-config="vsock"]'),vm.vsock?'Esta VM ya tiene un dispositivo vsock configurado.':offline);
+  for(const action of ['resources','share'])unavailable(document.querySelector(`[data-config="${action}"]`),offline);
+  unavailable($('vm-connect'),!vm.vnc?'Esta VM no tiene gráficos VNC configurados.':rfb?'La consola VNC ya está conectada o conectándose.':vm.state!=='running'?'Encendé la VM para conectar la consola VNC.':'');
+  const connected=!!rfb&&$('vm-console-state').textContent==='Conectado';
+  unavailable($('vm-disconnect'),!rfb?'No hay una conexión VNC activa para desconectar.':connected?'':'La consola todavía se está conectando.');
+  unavailable($('vm-send-key'),connected?'':'Conectá la consola VNC antes de enviar Ctrl + Alt + Supr.');
+  document.querySelectorAll('[data-network-index]').forEach(button=>unavailable(button,current.interfaces[Number(button.dataset.networkIndex)]?.editable?'':'Este tipo de interfaz no admite edición desde el panel. Configurala desde el hipervisor.'));
 }
 const live=window.SHC.createLiveRefresh({
   load:()=>api(domain?`/api/vms/${domain}`:'/api/vms'),
@@ -76,6 +87,7 @@ const live=window.SHC.createLiveRefresh({
 function refresh(){return live.request(true);}
 const descriptions={start:'Encender la máquina virtual.',shutdown:'Solicitar apagado ordenado al sistema invitado. Puede tardar unos minutos.',reboot:'Solicitar reinicio ordenado del invitado.',pause:'Pausar la ejecución. La memoria permanece reservada en el host.',resume:'Reanudar la ejecución de la máquina.', 'force-off':'Cortar la energía de la VM. Puede perder datos sin guardar o dañar su sistema de archivos.',reset:'Reiniciar inmediatamente la VM. Puede perder datos sin guardar.',autostart:'Cambiar si esta VM se enciende cuando arranca el host.',watchdog:'Agregar watchdog itco con acción reset. Requiere VM apagada y soporte del invitado; se respalda su XML.',vsock:'Agregar VirtIO vsock con CID automático. Requiere VM apagada y controladores compatibles.',agent:'Agregar canal VirtIO de QEMU Guest Agent. Requiere VM apagada. Luego instalá el agente dentro de Windows.',share:'Compartir con Virtiofs un directorio ya preparado en /srv/shc-shares. Requiere VM apagada, virtiofsd en el host y soporte dentro del invitado.',resources:'Cambiar CPU y memoria asignadas. Requiere VM apagada; se respalda su configuración.', 'snapshot-create':'Crear una instantánea de discos qcow2 con la VM apagada. No incluye RAM.', 'snapshot-revert':'Restaurar el estado del disco guardado. Se perderán los cambios posteriores a la instantánea. La VM debe estar apagada.', 'snapshot-delete':'Eliminar esta instantánea guardada. Esta operación no se puede deshacer.'};
 function openAction(id,action,name) {
+  window.SHC.setUnavailable?.($('vm-confirm'),'');
   $('vm-dialog').classList.remove('vm-network-dialog');
   pending={id,action,name};
   $('vm-dialog-title').textContent=action.startsWith('snapshot')?'Instantáneas': 'Confirmar acción de VM';
@@ -100,7 +112,7 @@ async function openNetwork(index=null){
   $('vm-dialog-title').textContent=net?'Editar interfaz de red':'Agregar interfaz de red';
   $('vm-dialog-copy').textContent=`${vm.name} · ${vm.state==='shut off'?'Los cambios se guardan para el próximo encendido. Se respalda el XML de la VM.':'Podés revisar las opciones; apagá la VM y volvé a abrir este menú para guardar cambios.'}`;
   $('vm-dialog-fields').textContent='Consultando redes e interfaces disponibles…';
-  $('vm-confirm').disabled=true;
+  window.SHC.setUnavailable($('vm-confirm'),'Esperá a que se carguen las redes disponibles.');
   const operation=pending;
   $('vm-dialog').showModal();
   try {
@@ -108,8 +120,8 @@ async function openNetwork(index=null){
     if(!$('vm-dialog').open||pending!==operation)return;
     $('vm-dialog-fields').innerHTML=window.SHC.vmNetwork.editor(vm,net,options);
     window.SHC.vmNetwork.bindEditor(net,options);
-    $('vm-confirm').disabled=vm.state!=='shut off';
-  }catch(error){if($('vm-dialog').open&&pending===operation)$('vm-dialog-fields').textContent=error.message;message(error.message,true);}
+    window.SHC.setUnavailable($('vm-confirm'),vm.state!=='shut off'?'Apagá la VM y volvé a abrir el editor para guardar los cambios de red.':'');
+  }catch(error){if($('vm-dialog').open&&pending===operation){$('vm-dialog-fields').textContent=error.message;window.SHC.setUnavailable($('vm-confirm'),'No se pudieron cargar las opciones de red. Cerrá el editor y volvé a intentarlo.');}message(error.message,true);}
 }
 document.addEventListener('click',event=>{
   const network=event.target.closest('[data-network-index]');
@@ -151,8 +163,9 @@ else {
     rfb=new RFB($('vm-console'),`wss://${location.host}/ws/vms/${domain}/console`);
     rfb.scaleViewport=true;rfb.resizeSession=false;
     $('vm-console-state').textContent='Conectando…';
-    rfb.addEventListener('connect',()=>{$('vm-console-state').textContent='Conectado';$('vm-disconnect').disabled=false;$('vm-send-key').disabled=false;$('vm-connect').disabled=true;});
-    rfb.addEventListener('disconnect',()=>{rfb=null;$('vm-console-state').textContent='Consola desconectada';$('vm-disconnect').disabled=true;$('vm-send-key').disabled=true;$('vm-connect').disabled=!current||current.state!=='running'||!current.vnc;});
+    updateAvailability();
+    rfb.addEventListener('connect',()=>{$('vm-console-state').textContent='Conectado';updateAvailability();});
+    rfb.addEventListener('disconnect',()=>{rfb=null;$('vm-console-state').textContent='Consola desconectada';updateAvailability();});
     rfb.addEventListener('credentialsrequired',()=>{message('Esta consola requiere contraseña VNC. Configurala desde el hipervisor; no se guarda en el panel.',true);rfb.disconnect();});
   };
   $('vm-disconnect').onclick=()=>rfb?.disconnect();
