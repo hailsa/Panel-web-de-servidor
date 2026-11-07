@@ -87,6 +87,7 @@ function renderProcesses(processes) {
 }
 
 function render(data) {
+  window.SHC.updateHostResources(data);
   setConnection(true, data.system.hostname, data.system.uptime_seconds);
   showError(false);
   const root = data.filesystems.find(item => item.mountpoint === '/') || data.filesystems[0];
@@ -123,7 +124,7 @@ async function refresh() {
     const response = await fetch('/api/snapshot', {cache: 'no-store'});
     if (!response.ok) throw new Error('Collector no disponible');
     render(await response.json());
-  } catch (_) { setConnection(false); showError(true); }
+  } catch (_) { window.SHC.updateHostResources(null); setConnection(false); showError(true); }
 }
 
 window.addEventListener('resize', drawChart);
