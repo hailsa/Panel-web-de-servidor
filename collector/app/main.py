@@ -27,8 +27,26 @@ from .collectors.users import collect_users
 from .vm_management import vm_request
 from . import docker_management
 from .journal import journal_request
+from .updates import updates_request
 
 app = FastAPI(title="SHC Collector", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+@app.get('/v1/updates', dependencies=[Depends(require_token)])
+def updates_inventory():
+    return updates_request({'action': 'inventory'})
+
+
+@app.get('/v1/updates/summary', dependencies=[Depends(require_token)])
+def updates_summary():
+    return updates_request({'action': 'summary'})
+
+
+@app.post('/v1/updates', dependencies=[Depends(require_token)])
+def updates_action(payload: dict):
+    if payload.get('action') not in {'refresh', 'preview', 'apply', 'logs', 'changelog'}:
+        raise HTTPException(400, 'Acción inválida.')
+    return updates_request(payload)
 
 
 @app.get('/v1/journal/metadata',dependencies=[Depends(require_token)])

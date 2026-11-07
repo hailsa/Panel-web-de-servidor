@@ -1,0 +1,9 @@
+[Unit]
+Description=SHC search for host APT and security updates (no package installation)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+ExecStart=/usr/local/libexec/shc-updates-helper --scheduled

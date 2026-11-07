@@ -24,7 +24,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.9.5"
+APP_VERSION = "v0.10.0"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -255,6 +255,31 @@ async def docker_action(container_id: str,request: Request):
     payload=await request.json()
     if not isinstance(payload,dict):return JSONResponse({'detail':'Solicitud inválida'},status_code=400)
     return await vm_proxy('/v1/docker/'+container_id,payload)
+
+
+@app.get('/actualizaciones', response_class=HTMLResponse)
+def updates_page(request: Request):
+    return templates.TemplateResponse(request=request, name='updates.html', context=page_context(request, 'updates'))
+
+
+@app.get('/api/updates')
+async def updates_inventory():
+    return await vm_proxy('/v1/updates')
+
+
+@app.get('/api/updates/summary')
+async def updates_summary():
+    return await vm_proxy('/v1/updates/summary')
+
+
+@app.post('/api/updates')
+async def updates_action(request: Request):
+    if request.headers.get('x-shc-action') != 'confirm':
+        return JSONResponse({'detail': 'Confirmación requerida'}, status_code=403)
+    payload = await request.json()
+    if not isinstance(payload, dict) or payload.get('action') not in {'refresh', 'preview', 'apply', 'logs', 'changelog'}:
+        return JSONResponse({'detail': 'Acción inválida'}, status_code=400)
+    return await vm_proxy('/v1/updates', payload)
 
 
 @app.get('/api/vm-network-options')

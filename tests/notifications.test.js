@@ -18,7 +18,7 @@ const document={getElementById:get,querySelector:get,querySelectorAll:()=>[],add
 const context={document,localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},
   window:{matchMedia:()=>({matches:false}),addEventListener(){}},Intl,Date,Math,Set,
   setInterval:()=>1,setTimeout:(callback,delay)=>{timers.push({callback,delay});return 1;},
-  fetch:async()=>({ok:true,json:async()=>({})})};
+  fetch:async url=>({ok:true,json:async()=>url==='/api/updates/summary'?{available:true,security_count:2,high_count:1,jobs:[]}:({})})};
 vm.runInNewContext(fs.readFileSync('dashboard/app/static/js/base.js','utf8'),context);
 context.window.SHC.notify({title:'VM · sample',message:'Estado confirmado',severity:'success'});
 assert.equal(get('notification-toasts').children.length,1);
@@ -32,5 +32,6 @@ assert.equal(history[0].resolved,false,'activity must not be resolved as a hardw
 setImmediate(()=>{
   const saved=JSON.parse(storage.get('shc-notifications-v1'));
   assert.ok(saved.some(item=>item.title==='VM · sample'&&!item.resolved),'alert refresh must preserve activity history');
+  assert.ok(saved.some(item=>item.title==='Actualizaciones de seguridad pendientes'&&item.severity==='critical'&&!item.resolved),'important security updates must reach the bell');
   console.log('Notifications: 5-second expiry, saved history, unread/read and alert refresh OK');
 });

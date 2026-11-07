@@ -1,0 +1,5 @@
+d /var/lib/shc-monitor-updates 0700 root root -
+d /var/lib/shc-monitor-updates/jobs 0700 root root -
+d /var/lib/shc-monitor-updates/plans 0700 root root -
+d /var/lib/shc-monitor-updates/backups 0700 root root -
+d /var/cache/shc-monitor-updates 0700 root root -

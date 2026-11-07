@@ -26,6 +26,7 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.9.3`: expulsar ISO de CD/DVD desde almacenamiento, también para el próximo inicio.
 - `v0.9.4`: indicadores de CPU y RAM del servidor en la barra superior de todas las pestañas.
 - `v0.9.5`: indicadores sólo fuera del dashboard, en orden Servidor en línea → RAM → CPU.
+- `v0.10.0`: gestión de actualizaciones APT del anfitrión, avisos de seguridad, planes revisados y tareas persistentes.
 
 Para cada nueva versión:
 

@@ -1,0 +1,11 @@
+[Unit]
+Description=Check SHC host package/security updates every six hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=shc-updates-check.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,2 @@
+# Restrict sudo to the JSON entrypoint without command-line arguments.
+%shc-power ALL=(root) NOPASSWD: /usr/local/libexec/shc-updates-helper ""

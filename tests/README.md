@@ -1,5 +1,7 @@
 # Pruebas
 
+`test_updates.py` valida clasificación CVE por versiones, lectura del feed por registros, coincidencia exacta de la simulación APT, comandos sin eliminaciones ni saltos de confianza, confirmación/expiración, redacción de secretos y rechazo del worker cuando el plan cambió. No instala paquetes. `notifications.test.js` también comprueba que los parches importantes llegan a la campana.
+
 `test_vm_media.py` comprueba expulsión en vivo y persistente de CD/DVD, protección de discos de datos, rechazo de medios cambiados y manejo de bandejas bloqueadas sin forzar ni anunciar éxito incorrectamente.
 
 `test_vm_discovery.py` comprueba detección por MAC en cabeceras sintéticas ARP/IPv4/IPv6/VLAN, descarte de tráfico ajeno o inválido, caducidad de observaciones, cambio de instancia de la VM y prioridad del agente. No captura tráfico real.

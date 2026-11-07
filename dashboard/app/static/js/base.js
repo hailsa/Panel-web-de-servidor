@@ -114,6 +114,7 @@ function save(key,value){try{localStorage.setItem(key,JSON.stringify(value));}ca
 let notifications = readSaved(NOTIFICATION_KEY,[]);
 if(!Array.isArray(notifications))notifications=[];
 let priorState = readSaved(STATE_KEY,{});
+let updatesSummary=null;
 const notificationId = (kind, target) => `${kind}:${target}`;
 const addNotification = (kind, severity, title, message) => {
   const id = notificationId(kind, title);
@@ -123,6 +124,7 @@ const addNotification = (kind, severity, title, message) => {
   notifications = notifications.slice(0, 50);
 };
 const resolveMissing = activeIds => notifications.forEach(item => {
+  if(item.id.startsWith('updates:')&&!updatesSummary?.available)return;
   if (!item.activity && !activeIds.has(item.id) && !item.resolved) { item.resolved = true; item.updatedAt = Date.now(); }
 });
 const renderNotifications = () => {
@@ -180,6 +182,12 @@ const evaluateAlerts = data => {
   });
   if (data.network?.internet_available === false) alert('internet', 'critical', 'Sin conexión a Internet', 'El servidor no pudo establecer conectividad externa.');
   if (data.smart?.available && data.smart?.healthy === false) alert('smart', 'critical', 'Riesgo en unidad física', data.smart.reason || 'SMART informa un estado no saludable.');
+  if(updatesSummary?.available){
+    if(updatesSummary.security_count>0)alert('updates',updatesSummary.high_count>0?'critical':'warning','Actualizaciones de seguridad pendientes',`${updatesSummary.security_count} paquetes de seguridad · ${updatesSummary.high_count} con urgencia alta según Debian. Revisá la pestaña Actualizaciones.`);
+    if(updatesSummary.reboot?.required)alert('updates','warning','Reinicio del servidor pendiente',updatesSummary.reboot.reason+' Revisá Actualizaciones antes de reiniciar.');
+    const job=updatesSummary.jobs?.[0];
+    if(job?.state==='failed')alert('updates','warning',job.kind==='install'?'La instalación de actualizaciones falló':'Falló la búsqueda de actualizaciones',job.error||'Revisá el registro de Actualizaciones.');
+  }
   resolveMissing(active);
   priorState = {collectedAt: data.collected_at, docker: data.docker, virtualMachines: data.virtual_machines};
   save(STATE_KEY,priorState);
@@ -187,7 +195,10 @@ const evaluateAlerts = data => {
 };
 async function refreshNotifications() {
   try {
-    const response = await fetch('/api/snapshot', {cache: 'no-store'});
+    const [snapshot,updates]=await Promise.allSettled([fetch('/api/snapshot',{cache:'no-store'}),fetch('/api/updates/summary',{cache:'no-store'})]);
+    if(updates.status==='fulfilled'&&updates.value.ok){try{updatesSummary=await updates.value.json();}catch(_){}}
+    if(snapshot.status!=='fulfilled')throw new Error('Sin datos');
+    const response=snapshot.value;
     if (!response.ok) throw new Error('Sin datos');
     evaluateAlerts(await response.json());
   } catch (_) {
