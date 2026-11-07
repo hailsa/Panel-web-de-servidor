@@ -18,8 +18,6 @@ function update(data){
   }
 }
 window.SHC.updateHostResources=update;
-// The dashboard already polls this snapshot every two seconds.
-if(container.dataset.page==='dashboard')return;
 const live=window.SHC.createLiveRefresh({
   load:async()=>{const response=await fetch('/api/snapshot',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!response.ok)throw new Error('Sin métricas');return response.json();},
   render:data=>{update(data);if(data.system)setConnection(true,data.system.hostname,data.system.uptime_seconds);},

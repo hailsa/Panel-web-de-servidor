@@ -25,11 +25,13 @@
   <main>
     <header class="topbar">
       <button id="menu" aria-label="Abrir o contraer menú" aria-expanded="false">☰</button>
-      <div id="host-resources" class="host-resources" data-page="{{ active }}" role="group" aria-label="Consumo del servidor">
-        <div id="host-cpu-metric" class="host-resource host-resource-cpu" title="CPU del servidor: esperando datos"><svg aria-hidden="true"><use href="/static/img/icons.svg#cpu"></use></svg><span>CPU</span><strong id="host-cpu-value">—</strong><span class="host-resource-track" aria-hidden="true"><i id="host-cpu-bar"></i></span></div>
-        <div id="host-ram-metric" class="host-resource host-resource-ram" title="RAM del servidor: esperando datos"><svg aria-hidden="true"><use href="/static/img/icons.svg#memory"></use></svg><span>RAM</span><strong id="host-ram-value">—</strong><span class="host-resource-track" aria-hidden="true"><i id="host-ram-bar"></i></span></div>
-      </div>
       <div class="online"><i></i><span id="server-state">Conectando…</span></div>
+      {% if active != 'dashboard' %}
+      <div id="host-resources" class="host-resources" data-page="{{ active }}" role="group" aria-label="Consumo del servidor">
+        <div id="host-ram-metric" class="host-resource host-resource-ram" title="RAM del servidor: esperando datos"><svg aria-hidden="true"><use href="/static/img/icons.svg#memory"></use></svg><span>RAM</span><strong id="host-ram-value">—</strong><span class="host-resource-track" aria-hidden="true"><i id="host-ram-bar"></i></span></div>
+        <div id="host-cpu-metric" class="host-resource host-resource-cpu" title="CPU del servidor: esperando datos"><svg aria-hidden="true"><use href="/static/img/icons.svg#cpu"></use></svg><span>CPU</span><strong id="host-cpu-value">—</strong><span class="host-resource-track" aria-hidden="true"><i id="host-cpu-bar"></i></span></div>
+      </div>
+      {% endif %}
       <span id="uptime" class="pill">—</span>
       <div class="topbar-actions">
         <div class="notification-wrap">
@@ -74,7 +76,7 @@
   <script src="/static/vendor/xterm/xterm.js"></script>
   <script src="/static/js/base.js?v={{ version }}"></script>
   <script src="/static/js/live_refresh.js?v={{ version }}"></script>
-  <script src="/static/js/host_resources.js?v={{ version }}"></script>
+  {% if active != 'dashboard' %}<script src="/static/js/host_resources.js?v={{ version }}"></script>{% endif %}
   <script src="/static/js/terminal.js?v={{ version }}"></script>
   {% block scripts %}{% endblock %}
 </body>
