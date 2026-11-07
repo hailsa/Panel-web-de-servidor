@@ -23,6 +23,7 @@ SHC utiliza versionado semántico y tags anotados de Git.
 - `v0.9.0`: IP en la visión general y editor de interfaces de VM con acceso a la LAN.
 - `v0.9.1`: explicaciones al pasar el mouse o enfocar opciones de VM deshabilitadas.
 - `v0.9.2`: detección pasiva de IP fijas en VM sin agente, incluso con macvtap.
+- `v0.9.3`: expulsar ISO de CD/DVD desde almacenamiento, también para el próximo inicio.
 
 Para cada nueva versión:
 

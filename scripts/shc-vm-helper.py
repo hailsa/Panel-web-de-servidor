@@ -56,14 +56,26 @@ def inventory(domain, detail=False):
                    "watchdog": [], "vsock": False, "agent_configured": False,
                    "vnc": False, "guest_services": [],
                    "guest_services_reason": "Instalá y activá QEMU Guest Agent dentro del invitado para consultar servicios e IP."})
+    inactive = ET.fromstring(virsh('dumpxml', '--domain', domain, '--inactive')) if result['persistent'] else None
     for disk in root.findall("devices/disk"):
         target, source, driver = disk.find("target"), disk.find("source"), disk.find("driver")
         name = target.get("dev", "") if target is not None else ""
         storage = {"target": name, "device": disk.get("device"),
                    "bus": target.get("bus") if target is not None else None,
                    "format": driver.get("type") if driver is not None else None,
-                   "source": next(iter(source.attrib.values()), "") if source is not None else "",
+                   "source": source.get('file', '') if disk.get('type') == 'file' and source is not None else next(iter(source.attrib.values()), "") if source is not None else "",
                    "readonly": disk.find("readonly") is not None}
+        if disk.get('device') == 'cdrom':
+            saved = media_disk(inactive, name) if inactive is not None else None
+            storage['persistent_source'] = media_source(saved)
+            storage['eject_reason'] = ('' if state in {'running', 'paused', 'shut off'} else 'Esperá a que la VM termine de cambiar de estado.')
+            if result['persistent'] and saved is None:
+                storage['eject_reason'] = 'Esta unidad no está definida para el próximo inicio. Administrala desde el hipervisor.'
+            if disk.get('type') != 'file' or (saved is not None and saved.get('type') != 'file'):
+                storage['eject_reason'] = 'Este medio no es una imagen de CD/DVD en archivo.'
+            if not storage['source'] and not storage['persistent_source']:
+                storage['eject_reason'] = 'La unidad de CD/DVD ya está vacía.'
+            storage['can_eject'] = not bool(storage['eject_reason'])
         capacity = fields(optional("domblkinfo", "--domain", domain, name))
         for key in ("Capacity", "Allocation", "Physical"):
             value = capacity.get(key, "").strip()
@@ -123,18 +135,71 @@ def safe_name(value):
     return value
 
 
-def save_config(domain, root):
-    if virsh("domstate", "--domain", domain) != "shut off":
-        raise ValueError("Apagá la VM antes de cambiar sus dispositivos o recursos.")
+def backup_config(domain, xml=None):
     backup = Path("/var/backups/shc-monitor/vm-config")
     backup.mkdir(parents=True, exist_ok=True, mode=0o700)
     stamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d%H%M%S%f")
     path = backup / f"{domain}-{stamp}.xml"
-    path.write_text(virsh("dumpxml", "--domain", domain, "--inactive"))
+    path.write_text(xml if xml is not None else virsh("dumpxml", "--domain", domain, "--inactive"))
     path.chmod(0o600)
+    return path
+
+
+def save_config(domain, root):
+    if virsh("domstate", "--domain", domain) != "shut off":
+        raise ValueError("Apagá la VM antes de cambiar sus dispositivos o recursos.")
+    backup_config(domain)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".xml") as file:
         file.write(ET.tostring(root, encoding="unicode")); file.flush()
         virsh("define", file.name, "--validate")
+
+
+def media_disk(root, target):
+    if root is None:
+        return None
+    return next((node for node in root.findall('devices/disk')
+                 if node.find('target') is not None and node.find('target').get('dev') == target), None)
+
+
+def media_source(node):
+    source = node.find('source') if node is not None else None
+    return source.get('file', '') if source is not None else ''
+
+
+def eject_media(domain, root, state, request):
+    target = request.get('target')
+    if not isinstance(target, str) or not re.fullmatch(r'[A-Za-z][A-Za-z0-9]{0,15}', target):
+        raise ValueError('Unidad de CD/DVD inválida.')
+    if state not in {'running', 'paused', 'shut off'}:
+        raise ValueError('Esperá a que la VM termine de cambiar de estado.')
+    info = {key.strip(): value.strip() for key, value in fields(virsh('dominfo', '--domain', domain)).items()}
+    persistent = info.get('Persistent') == 'yes'
+    saved_xml = virsh('dumpxml', '--domain', domain, '--inactive') if persistent else None
+    saved = media_disk(ET.fromstring(saved_xml), target) if persistent else None
+    current = media_disk(root, target)
+    for disk in [current] + ([saved] if persistent else []):
+        if disk is None or disk.get('device') != 'cdrom' or disk.get('type') != 'file':
+            raise ValueError('Sólo se permite expulsar una imagen de CD/DVD; los discos de datos no se pueden quitar con esta acción.')
+    source, saved_source = media_source(current), media_source(saved)
+    if request.get('expected_source') != source or request.get('expected_persistent_source') != saved_source:
+        raise ValueError('El medio montado cambió. Actualizá la vista y volvé a confirmar.')
+    live = state in {'running', 'paused'} and bool(source)
+    config = persistent and bool(saved_source)
+    if not live and not config:
+        raise ValueError('La unidad de CD/DVD ya está vacía.')
+    if persistent:
+        backup_config(domain, saved_xml)
+    flags = (['--live'] if live else []) + (['--config'] if config else [])
+    try:
+        virsh('change-media', '--domain', domain, '--path', target, '--eject', *flags, timeout=25)
+    except ValueError as error:
+        raise ValueError(f'No se pudo completar la expulsión. Si el invitado mantiene el CD/DVD bloqueado, apagá la VM y reintentá. Revisá el estado actual y el próximo inicio. Detalle: {error}') from error
+    if live and media_source(media_disk(xml_for(domain), target)):
+        raise ValueError('El invitado todavía no liberó el CD/DVD. Revisá el estado y reintentá con la VM apagada.')
+    if config and media_source(media_disk(ET.fromstring(virsh('dumpxml', '--domain', domain, '--inactive')), target)):
+        raise ValueError('No se confirmó la expulsión para el próximo inicio. Actualizá la vista y reintentá.')
+    return ('ISO expulsada de la unidad de CD/DVD y de la configuración del próximo inicio. El archivo se conserva en el servidor.'
+            if persistent else 'ISO expulsada de la unidad de CD/DVD. El archivo se conserva en el servidor.')
 
 
 def handle(request):
@@ -175,6 +240,8 @@ def handle(request):
         if state not in allowed:
             raise ValueError("Acción incompatible con el estado actual de la VM.")
         virsh(command, "--domain", domain)
+    elif action == 'media-eject':
+        media_message = eject_media(domain, root, state, request)
     elif action == "autostart":
         if not isinstance(request.get("enabled"), bool):
             raise ValueError("Valor inválido")
@@ -270,7 +337,7 @@ def handle(request):
         raise ValueError("Acción no permitida")
     import syslog
     syslog.syslog(syslog.LOG_NOTICE, f"SHC VM action={action} domain={domain}")
-    return {"accepted": True, "message": "Solicitud enviada a libvirt. Actualizando estado…"}
+    return {"accepted": True, "message": media_message if action == 'media-eject' else "Solicitud enviada a libvirt. Actualizando estado…"}
 
 
 if __name__ == "__main__":

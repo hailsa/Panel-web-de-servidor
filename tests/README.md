@@ -1,5 +1,7 @@
 # Pruebas
 
+`test_vm_media.py` comprueba expulsión en vivo y persistente de CD/DVD, protección de discos de datos, rechazo de medios cambiados y manejo de bandejas bloqueadas sin forzar ni anunciar éxito incorrectamente.
+
 `test_vm_discovery.py` comprueba detección por MAC en cabeceras sintéticas ARP/IPv4/IPv6/VLAN, descarte de tráfico ajeno o inválido, caducidad de observaciones, cambio de instancia de la VM y prioridad del agente. No captura tráfico real.
 
 `test_vm_network.py` valida selección de redes existentes, edición y agregado de placas, MAC duplicadas, límites de MTU/colas, preservación de dispositivos y políticas, rechazo de cambios con VM encendida y lectura IPv4/IPv6. Ejecutar con `python -m unittest discover -s tests -p test_vm_network.py`. `node tests/vm-network.test.js` verifica presentación de IP y opciones del editor. Estas pruebas usan datos ficticios y no cambian VM reales.
