@@ -14,7 +14,7 @@
     <article class="metric green"><div class="metric-copy"><span class="metric-icon"><svg><use href="/static/img/icons.svg#temperature"></use></svg></span><div><span>Temperatura</span><strong id="temperature">—</strong><small>CPU Package</small></div></div><svg class="sparkline" viewBox="0 0 100 36" preserveAspectRatio="none"><polyline id="temperature-spark"/></svg></article>
   </div>
   <div class="dashboard-layout">
-    <article class="card system-card"><h2><svg><use href="/static/img/icons.svg#info"></use></svg>Información del Sistema</h2><dl id="system-info"></dl></article>
+    <article class="card system-card"><h2><svg><use href="/static/img/icons.svg#info"></use></svg>Información del Sistema</h2><div id="system-info"></div></article>
     <article class="card processes-card"><h2><svg><use href="/static/img/icons.svg#processes"></use></svg>Procesos (Top 5)</h2><div class="table-wrap"><table class="compact-table"><thead><tr><th>PID</th><th>Nombre</th><th>CPU</th><th>RAM</th></tr></thead><tbody id="processes"><tr><td colspan="4" class="empty compact-empty">Cargando…</td></tr></tbody></table></div></article>
     <article class="card services-card"><h2><svg><use href="/static/img/icons.svg#services"></use></svg>Servicios</h2><div id="services"></div></article>
     <article class="card resource-card"><div class="card-title-row"><h2><svg><use href="/static/img/icons.svg#chart"></use></svg>Uso de Recursos</h2><span id="chart-range" class="muted">Historial en este navegador</span></div><div class="chart-legend"><span class="cpu-line">CPU</span><span class="ram-line">RAM</span><span class="disk-line">Disco</span></div><div class="chart-wrap"><canvas id="resource-chart" aria-label="Gráfico de uso de CPU, RAM y disco"></canvas></div></article>
@@ -25,4 +25,4 @@
   </div>
 </section>
 {% endblock %}
-{% block scripts %}<script src="/static/js/app.js?v={{ version }}"></script>{% endblock %}
+{% block scripts %}<script src="/static/js/system-info.js?v={{ version }}"></script><script src="/static/js/app.js?v={{ version }}"></script>{% endblock %}

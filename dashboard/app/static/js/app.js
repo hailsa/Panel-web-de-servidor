@@ -105,8 +105,7 @@ function render(data) {
   const hostAddresses = data.network.addresses.filter(item => item.address !== '127.0.0.1' && item.interface !== 'docker0' && !item.interface.startsWith('br-'));
   const privateNetwork = hostAddresses.find(item => /^zt/i.test(item.interface));
   const localNetwork = hostAddresses.find(item => !/^zt/i.test(item.interface)) || hostAddresses[0];
-  const networkRows = `<dt>IP local</dt><dd>${esc(localNetwork ? localNetwork.address : 'No disponible')}</dd>` + (privateNetwork ? `<dt>Red privada</dt><dd>${esc(privateNetwork.address)}</dd>` : '');
-  $('system-info').innerHTML = `<dt>Hostname</dt><dd>${esc(data.system.hostname)}</dd>${networkRows}<dt>Sistema operativo</dt><dd>${esc(data.system.os)}</dd><dt>Kernel</dt><dd>${esc(data.system.kernel)}</dd><dt>CPU</dt><dd>${esc(data.system.cpu_model)}</dd><dt>Arquitectura</dt><dd>${esc(data.system.architecture)}</dd>`;
+  renderSystemInfo(data, localNetwork, privateNetwork);
   renderProcesses(data.processes || []);
   const virtualization = data.virtual_machines;
   const machines = virtualization.machines || [];

@@ -36,3 +36,4 @@ Para cada nueva versión:
 4. Crear un commit de release y el tag anotado `vX.Y.Z`.
 5. Subir `main`, la rama de versión y los tags a GitHub.
 6. Desplegar sólo después de crear un respaldo recuperable de la versión anterior.
+- `v0.10.1`: resumen del servidor ampliado y organizado por sistema, hardware y red.

@@ -16,6 +16,7 @@ from typing import Any
 import psutil
 from .virtual_machines import collect_virtual_machines
 from .ports import collect_ports
+from .details import collect_hardware
 
 _sample_lock = threading.Lock()
 _last_network_sample: tuple[float, int, int] | None = None
@@ -56,6 +57,17 @@ def _cpu_model() -> str:
     except OSError:
         pass
     return platform.processor() or "No disponible"
+
+
+def _timezone() -> str | None:
+    """Read the host zone, including systems without the legacy timezone file."""
+    try:
+        zone = str(Path("/etc/localtime").resolve()).split("/zoneinfo/", 1)
+        if len(zone) == 2:
+            return zone[1]
+        return Path("/etc/timezone").read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
 
 
 def _addresses() -> list[dict[str, str]]:
@@ -212,6 +224,7 @@ def collect_snapshot() -> dict[str, Any]:
         temperatures[0] if temperatures else None,
     )
     os_release = _os_release()
+    hardware = collect_hardware()
     return {
         "available": True,
         "collected_at": datetime.now(UTC).isoformat(),
@@ -222,7 +235,14 @@ def collect_snapshot() -> dict[str, Any]:
             "architecture": platform.machine(),
             "cpu_model": _cpu_model(),
             "cpu_count": psutil.cpu_count(logical=True),
+            "cpu_physical_cores": psutil.cpu_count(logical=False),
             "uptime_seconds": uptime,
+            "booted_at": datetime.fromtimestamp(psutil.boot_time(), UTC).isoformat(),
+            "timezone": _timezone(),
+            "boot_mode": "UEFI" if Path("/sys/firmware/efi").is_dir() else "BIOS heredado",
+            "board_vendor": hardware["board_vendor"],
+            "board_name": hardware["board_name"],
+            "bios_version": hardware["bios_version"],
         },
         "cpu": {
             "percent": psutil.cpu_percent(interval=0.15),
