@@ -51,6 +51,11 @@
         <button id="terminal-toggle" class="icon-button terminal-toggle" aria-label="Abrir consola" aria-expanded="false">&gt;_</button>
         <button id="theme" class="icon-button" aria-label="Cambiar tema">☾</button>
       </div>
+      <div id="host-network" class="host-network network-unknown" role="img" aria-label="Conexión del servidor: esperando datos" title="Conexión del servidor: esperando datos">
+        <svg class="network-wifi" viewBox="0 0 24 24" aria-hidden="true"><path class="wifi-level-3" d="M2 8a16 16 0 0 1 20 0"/><path class="wifi-level-2" d="M5 12a11 11 0 0 1 14 0"/><path class="wifi-level-1" d="M8 16a6 6 0 0 1 8 0"/><circle cx="12" cy="20" r="1"/></svg>
+        <svg class="network-ethernet" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v12h-4v5H9v-5H5zM8 6v4m4-4v4m4-4v4"/></svg>
+        <span id="host-network-label">—</span>
+      </div>
       <time id="clock"></time>
       <form action="/logout" method="post" class="logout-form"><input type="hidden" name="csrf_token" value="{{ logout_csrf_token }}"><button type="submit" aria-label="Cerrar sesión">Salir</button></form>
     </header>
@@ -76,6 +81,7 @@
   </dialog>
   <script src="/static/vendor/xterm/xterm.js"></script>
   <script src="/static/js/base.js?v={{ version }}"></script>
+  <script src="/static/js/host_network.js?v={{ version }}"></script>
   <script src="/static/js/live_refresh.js?v={{ version }}"></script>
   {% if active != 'dashboard' %}<script src="/static/js/host_resources.js?v={{ version }}"></script>{% endif %}
   <script src="/static/js/terminal.js?v={{ version }}"></script>

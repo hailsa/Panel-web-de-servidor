@@ -37,3 +37,4 @@ Para cada nueva versión:
 5. Subir `main`, la rama de versión y los tags a GitHub.
 6. Desplegar sólo después de crear un respaldo recuperable de la versión anterior.
 - `v0.10.1`: resumen del servidor ampliado y organizado por sistema, hardware y red.
+- `v0.10.2`: indicador global de conexión Ethernet/Wi-Fi con tres niveles de señal.

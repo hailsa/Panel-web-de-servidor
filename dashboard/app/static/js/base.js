@@ -17,6 +17,7 @@ const duration = value => {
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const row = (label, value, status = '') => `<div class="row"><span>${esc(label)}</span><span class="${status}">${esc(value)}</span></div>`;
 const setConnection = (online, hostname = null, uptime = null) => {
+  if (!online) window.SHC.updateHostNetwork?.(null);
   $('server-state').textContent = online ? 'Servidor en línea' : 'Sin datos';
   document.querySelector('.online').classList.toggle('offline', !online);
   if (hostname) $('side-host').textContent = hostname;

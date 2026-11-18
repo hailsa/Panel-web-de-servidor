@@ -4,6 +4,7 @@ const {$,size,setConnection}=window.SHC;
 const container=$('host-resources');
 if(!container)return;
 function update(data){
+  window.SHC.updateHostNetwork?.(data);
   for(const [key,label,value] of [['cpu','CPU',data?.cpu?.percent],['ram','RAM',data?.memory?.percent]]){
     const available=typeof value==='number'&&Number.isFinite(value);
     const percent=available?Math.min(100,Math.max(0,value)):null;

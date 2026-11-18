@@ -87,6 +87,7 @@ function renderProcesses(processes) {
 }
 
 function render(data) {
+  window.SHC.updateHostNetwork?.(data);
   setConnection(true, data.system.hostname, data.system.uptime_seconds);
   showError(false);
   const root = data.filesystems.find(item => item.mountpoint === '/') || data.filesystems[0];

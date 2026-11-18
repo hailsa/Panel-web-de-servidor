@@ -17,6 +17,7 @@ import psutil
 from .virtual_machines import collect_virtual_machines
 from .ports import collect_ports
 from .details import collect_hardware
+from .connection import collect_connection
 
 _sample_lock = threading.Lock()
 _last_network_sample: tuple[float, int, int] | None = None
@@ -259,6 +260,7 @@ def collect_snapshot() -> dict[str, Any]:
             "swap_used": swap.used,
         },
         "network": {
+            "connection": collect_connection(),
             "addresses": _addresses(),
             "bytes_sent": net.bytes_sent,
             "bytes_received": net.bytes_recv,

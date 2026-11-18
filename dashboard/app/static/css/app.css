@@ -119,3 +119,12 @@ body.login-page{
 .system-card .system-info-group dl{grid-template-columns:minmax(110px,.9fr) minmax(0,1.6fr);font-size:12px;gap:5px 12px;line-height:1.4}
 .system-card .system-info-group dd{overflow:visible;overflow-wrap:anywhere;white-space:normal}
 @media(max-width:520px){.system-card .system-info-group dl{grid-template-columns:minmax(90px,.8fr) minmax(0,1.2fr);gap:6px 10px}}
+.host-network{display:flex;align-items:center;justify-content:center;gap:5px;flex:0 0 auto;height:34px;min-width:62px;padding:0 8px;border:1px solid var(--border);border-radius:9px;background:var(--card);color:var(--green);font-size:10px}
+.host-network svg{width:22px;height:22px;flex:none;stroke-width:2}
+.host-network .network-wifi,.host-network .network-ethernet{display:none}
+.host-network.network-is-wifi .network-wifi,.host-network.network-is-ethernet .network-ethernet{display:block}
+.host-network.network-unknown{color:var(--muted)}
+.network-wifi path{opacity:.18}.network-wifi circle{fill:currentColor;stroke:none}
+.host-network[data-bars="1"] .wifi-level-1,.host-network[data-bars="2"] .wifi-level-1,.host-network[data-bars="2"] .wifi-level-2,.host-network[data-bars="3"] .network-wifi path{opacity:1}
+.host-network[data-bars="unknown"]{color:var(--muted)}
+@media(max-width:720px){.host-network{min-width:34px;padding:0 5px}.host-network span{display:none}}
