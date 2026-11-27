@@ -33,6 +33,11 @@ async function refreshUsers() {
     if (!response.ok) throw new Error('Collector no disponible');
     const payload = await response.json();
     users = payload.users || [];
+    $('active-sessions').innerHTML = (payload.sessions || []).map(session => `<tr>
+      <td>${esc(session.user)}</td><td>${esc(session.ssh ? 'SSH' : session.service)} · ${esc(session.device || 'Sin TTY')}</td>
+      <td>${esc(session.address || '—')}<br><small>${esc(session.network)}</small></td>
+      <td>${esc(session.timestamp)}<br><small>${esc(session.state)}</small></td>
+      <td>${session.previous ? esc(session.previous.timestamp + ' · ' + session.previous.address) : 'No registrada'}</td></tr>`).join('') || '<tr><td colspan="5">Sin sesiones registradas por logind.</td></tr>';
     renderUsers();
     setConnection(true, payload.system?.hostname, payload.system?.uptime_seconds);
     showError(false);
@@ -46,4 +51,4 @@ document.querySelectorAll('.filter').forEach(button => button.addEventListener('
   renderUsers();
 }));
 refreshUsers();
-setInterval(refreshUsers, 30000);
+setInterval(refreshUsers, 5000);

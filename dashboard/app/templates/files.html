@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Archivos · SHC Monitor{% endblock %}
+{% block content %}
+<section class="content">
+  <div class="heading"><h1>Archivos</h1><p>Espacio administrado del servidor · /srv/shc-files</p></div>
+  <article class="card">
+    <div class="vm-actions">
+      <button id="files-up" type="button">Subir un nivel</button>
+      <button id="files-refresh" type="button">Actualizar</button>
+      <button id="files-mkdir" type="button">Nueva carpeta</button>
+      <button id="files-create" type="button">Nuevo archivo</button>
+    </div>
+    <p id="files-path"></p>
+    <p id="files-status" role="status"></p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Modificado</th><th>Acciones</th></tr></thead>
+      <tbody id="files-body"></tbody>
+    </table></div>
+  </article>
+  <dialog id="files-dialog" class="power-dialog">
+    <form id="files-form">
+      <h2 id="files-title"></h2>
+      <label id="files-field">Ruta desde la raíz <input id="files-target" maxlength="2048"></label>
+      <p id="files-description"></p>
+      <div><button id="files-cancel" type="button">Cancelar</button><button id="files-confirm">Confirmar</button></div>
+    </form>
+  </dialog>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/files.js?v={{ version }}"></script>{% endblock %}

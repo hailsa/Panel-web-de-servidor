@@ -1,0 +1,2 @@
+# Fixed local inventory queries, without caller-provided paths or commands.
+%shc-power ALL=(root) NOPASSWD: /usr/local/libexec/shc-host-telemetry smart, /usr/local/libexec/shc-host-telemetry hardware, /usr/local/libexec/shc-host-telemetry energy

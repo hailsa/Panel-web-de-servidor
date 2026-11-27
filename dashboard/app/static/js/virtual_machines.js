@@ -43,7 +43,7 @@ function renderList() {
   $('vm-running').textContent=machines.filter(vm=>vm.state==='running').length;
   $('vm-cpus').textContent=machines.reduce((total,vm)=>total+vm.vcpus,0);
   $('vm-memory').textContent=size(machines.reduce((total,vm)=>total+vm.memory_bytes,0));
-  $('vm-list').innerHTML=machines.filter(vm=>vm.name.toLocaleLowerCase().includes(query)).map(vm=>`<tr><td><a class="vm-name-link" href="/maquinas-virtuales/${vm.id}">${esc(vm.name)}</a><small class="vm-provider">KVM / libvirt</small></td><td><span class="badge ${vm.state==='running'?'online-badge':'neutral'}">${esc(stateLabel(vm.state))}</span></td><td>${vm.vcpus} vCPU</td><td>${size(vm.memory_bytes)}</td><td>${vm.autostart?'Activado':'Desactivado'}</td><td><div class="vm-actions">${actions(vm)}</div></td></tr>`).join('')||'<tr><td colspan="6" class="empty">No hay máquinas que coincidan.</td></tr>';
+  $('vm-list').innerHTML=machines.filter(vm=>vm.name.toLocaleLowerCase().includes(query)).map(vm=>`<tr><td><a class="vm-name-link" href="/maquinas-virtuales/${vm.id}">${esc(vm.name)}</a><small class="vm-provider">${esc(vm.addresses?.join(' · ') || 'IP no detectada')}</small></td><td><span class="badge ${vm.state==='running'?'online-badge':'neutral'}">${esc(stateLabel(vm.state))}</span></td><td>${vm.vcpus} vCPU</td><td>${size(vm.memory_bytes)}</td><td>${vm.autostart?'Activado':'Desactivado'}</td><td><div class="vm-actions">${actions(vm)}</div></td></tr>`).join('')||'<tr><td colspan="6" class="empty">No hay máquinas que coincidan.</td></tr>';
 }
 function renderDetail(vm) {
   current=vm;
@@ -54,7 +54,10 @@ function renderDetail(vm) {
   const stamp=Date.now(), cpu=Number(vm.stats['cpu.time']), rss=Number(vm.stats['balloon.rss'])*1024;
   const percent=previousStats&&stamp>previousStats.t?Math.max(0,Math.min(100,(cpu-previousStats.cpu)/((stamp-previousStats.t)*1e6*vm.vcpus)*100)):null;
   previousStats={t:stamp,cpu};
-  $('vm-usage').innerHTML=row('CPU (respecto de sus vCPU)',Number.isFinite(percent)?`${percent.toFixed(1)}%`:'Tomando muestra…','status')+row('RAM residente (host)',Number.isFinite(rss)&&rss>0?size(rss):'No disponible');
+  const guestTotal = Number(vm.stats['balloon.available']), guestFree = Number(vm.stats['balloon.usable']);
+  const guestUsed = vm.state === 'running' && guestTotal > 0 && guestFree >= 0 && guestFree <= guestTotal
+    ? size((guestTotal - guestFree) * 1024) : 'Sin datos del controlador de memoria';
+  $('vm-usage').innerHTML=row('CPU (respecto de sus vCPU)',Number.isFinite(percent)?`${percent.toFixed(1)}%`:'Tomando muestra…','status')+row('RAM residente (host)',Number.isFinite(rss)&&rss>0?size(rss):'No disponible')+row('RAM usada dentro de la VM',guestUsed);
   $('vm-disks').innerHTML=vm.disks.map(disk=>`<tr><td>${esc(disk.target)} · ${esc(disk.device)}</td><td>${disk.capacity==null?'—':size(disk.capacity)}</td><td>${disk.allocation==null?'—':size(disk.allocation)}</td><td>${esc(disk.bus)}</td><td>${esc(disk.format)}</td><td>${disk.readonly?'Sólo lectura':'Lectura / escritura'}</td><td class="vm-source" title="${esc(disk.source||'Sin medio')}">${esc(disk.source||'Sin medio')}${disk.device==='cdrom'&&disk.persistent_source!==disk.source?`<small class="vm-provider">Próximo inicio: ${esc(disk.persistent_source||'Sin medio')}</small>`:''}</td><td>${disk.device==='cdrom'?`<button data-media-target="${esc(disk.target)}" ${disk.can_eject?'':'disabled'}>Expulsar ISO</button>`:'—'}</td></tr>`).join('');
   $('vm-interfaces').innerHTML=vm.interfaces.map((net,index)=>`<tr><td class="vm-network-connection">${esc(window.SHC.vmNetwork.connectionLabel(net))}</td><td>${esc(net.model)}${net.mtu?`<small class="vm-provider">MTU ${esc(net.mtu)}</small>`:''}${net.queues?`<small class="vm-provider">${esc(net.queues)} colas</small>`:''}</td><td>${esc(net.mac)}</td><td>${window.SHC.vmNetwork.addressHTML({...vm,interfaces:[net]})}</td><td>${net.link_state==='down'?'Desconectado':'Conectado'}</td><td><button data-network-index="${index}" ${net.editable?'':'disabled'}>Editar</button></td></tr>`).join('')||'<tr><td colspan="6">Sin interfaces. Agregá una para conectar esta VM.</td></tr>';
   $('vm-devices').innerHTML=row('QEMU Guest Agent',vm.agent_configured?'Canal configurado':'Sin canal',vm.agent_configured?'status':'muted')+row('Watchdog',vm.watchdog.map(item=>`${item.model} · ${item.action}`).join(', ')||'No configurado')+row('Vsock',vm.vsock?'Configurado':'No configurado')+row('Gráficos VNC',vm.vnc?'Configurados':'No configurados');
@@ -83,7 +86,7 @@ const live=window.SHC.createLiveRefresh({
   load:()=>api(domain?`/api/vms/${domain}`:'/api/vms'),
   render:data=>{observeVMs(domain?[data]:data.machines);if(domain)renderDetail(data);else{machines=data.machines;renderList();}setConnection(true);showError(false);lastRefreshError='';},
   blocked:()=>document.hidden||!!document.querySelector('.vm-action-popover:popover-open')||$('vm-dialog').open,
-  onError:error=>{showError(true);if(lastRefreshError!==error.message)message(error.message,true);lastRefreshError=error.message;},interval:3000
+  onError:error=>{showError(true);if(lastRefreshError!==error.message)message(error.message,true);lastRefreshError=error.message;},interval:2000
 });
 function refresh(){return live.request(true);}
 const descriptions={start:'Encender la máquina virtual.',shutdown:'Solicitar apagado ordenado al sistema invitado. Puede tardar unos minutos.',reboot:'Solicitar reinicio ordenado del invitado.',pause:'Pausar la ejecución. La memoria permanece reservada en el host.',resume:'Reanudar la ejecución de la máquina.', 'force-off':'Cortar la energía de la VM. Puede perder datos sin guardar o dañar su sistema de archivos.',reset:'Reiniciar inmediatamente la VM. Puede perder datos sin guardar.',autostart:'Cambiar si esta VM se enciende cuando arranca el host.',watchdog:'Agregar watchdog itco con acción reset. Requiere VM apagada y soporte del invitado; se respalda su XML.',vsock:'Agregar VirtIO vsock con CID automático. Requiere VM apagada y controladores compatibles.',agent:'Agregar canal VirtIO de QEMU Guest Agent. Requiere VM apagada. Luego instalá el agente dentro de Windows.',share:'Compartir con Virtiofs un directorio ya preparado en /srv/shc-shares. Requiere VM apagada, virtiofsd en el host y soporte dentro del invitado.',resources:'Cambiar CPU y memoria asignadas. Requiere VM apagada; se respalda su configuración.', 'snapshot-create':'Crear una instantánea de discos qcow2 con la VM apagada. No incluye RAM.', 'snapshot-revert':'Restaurar el estado del disco guardado. Se perderán los cambios posteriores a la instantánea. La VM debe estar apagada.', 'snapshot-delete':'Eliminar esta instantánea guardada. Esta operación no se puede deshacer.'};
@@ -187,3 +190,25 @@ refresh();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)live.request();});
 fetch('/api/snapshot').then(response=>response.json()).then(data=>{if(data.system)setConnection(true,data.system.hostname,data.system.uptime_seconds);}).catch(()=>{});
 window.addEventListener('beforeunload',()=>{live.stop();rfb?.disconnect();});
+
+
+async function refreshGuestPorts() {
+  const control = $('vm-guest-ports-refresh');
+  control.disabled = true;
+  $('vm-guest-ports').textContent = 'Consultando el invitado…';
+  try {
+    const data = await api('/api/vms/' + domain + '/guest-ports');
+    if (!data.available) $('vm-guest-ports').textContent = data.reason;
+    else {
+      $('vm-guest-ports').innerHTML = data.ports.map(port => row(
+        String(port.protocol).toUpperCase() + ' ' + port.port, port.address
+      )).join('') || '<p>El invitado no informó puertos en escucha.</p>';
+      if (data.truncated) $('vm-guest-ports').append(' Se muestran los primeros 2000 puertos.');
+    }
+  } catch (error) { $('vm-guest-ports').textContent = error.message; }
+  finally { control.disabled = false; }
+}
+if (domain) {
+  $('vm-guest-ports-refresh').onclick = refreshGuestPorts;
+  refreshGuestPorts();
+}

@@ -81,7 +81,7 @@ def sample_headers(targets, duration=0.8):
     return result
 
 
-def discover_addresses(root, domain, known, cache_dir=CACHE_DIR):
+def discover_addresses(root, domain, known, cache_dir=CACHE_DIR, *, sample=True):
     targets, identity = {}, []
     for node in root.findall('devices/interface'):
         mac, source, target = node.find('mac'), node.find('source'), node.find('target')
@@ -120,11 +120,13 @@ def discover_addresses(root, domain, known, cache_dir=CACHE_DIR):
     sampled_at = cache.get('sampled_at', 0)
     if not isinstance(sampled_at, (int, float)):
         sampled_at = 0
-    if targets and (not retained or now - sampled_at >= 10):
+    if sample and targets and (not retained or now - sampled_at >= 10):
         observations = sample_headers(targets)
         cache['sampled_at'] = now
     unique = {(item['mac'], item['address']): item for item in retained + observations}
     result = sorted(unique.values(), key=lambda item: item['observed_at'], reverse=True)[:32]
+    if not sample:
+        return result
     try:
         cache_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(mode='w', dir=cache_dir, delete=False) as file:

@@ -24,7 +24,7 @@ from . import auth
 BASE_DIR = Path(__file__).resolve().parent
 SOCKET_PATH = os.getenv("SHC_COLLECTOR_SOCKET", "/run/shc-monitor/collector.sock")
 TOKEN_FILE = Path(os.getenv("SHC_COLLECTOR_TOKEN_FILE", "/run/secrets/collector_token"))
-APP_VERSION = "v0.10.2"
+APP_VERSION = "v0.10.3"
 
 app = FastAPI(title="SHC Monitor", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -52,7 +52,29 @@ async def require_login(request: Request, call_next):
         expected = f"https://{request.headers.get('host', '')}"
         if origin != expected:
             return JSONResponse({"detail": "Origen inválido"}, status_code=403)
+    if (request.method == "GET" and request.headers.get("sec-fetch-mode") == "navigate"
+            and request.headers.get("sec-fetch-site") in {"same-origin", "none"} and not request.url.path.startswith("/api/")):
+        auth.session_user(request.cookies.get("shc_session"), touch=True)
     return await call_next(request)
+
+
+@app.get("/api/session/status")
+def session_status():
+    return JSONResponse({}, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/session/activity")
+def session_activity(request: Request):
+    if request.headers.get("X-SHC-Action") != "confirm":
+        return JSONResponse({}, status_code=403)
+    user = auth.session_user(request.cookies.get("shc_session"), touch=True)
+    return JSONResponse({}, status_code=200 if user else 401, headers={"Cache-Control": "no-store"})
+
+
+async def watch_session(websocket: WebSocket):
+    while auth.session_user(websocket.cookies.get("shc_session")):
+        await asyncio.sleep(2)
+    await websocket.close(code=1008)
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -297,7 +319,7 @@ async def vm_action(domain: UUID, request: Request):
     if request.headers.get("x-shc-action") != "confirm":
         return JSONResponse({"detail": "Confirmación requerida"}, status_code=403)
     payload = await request.json()
-    if not isinstance(payload, dict) or payload.get("action") in {"list", "detail", "console"}:
+    if not isinstance(payload, dict) or payload.get("action") in {"list", "detail", "console", "guest-ports"}:
         return JSONResponse({"detail": "Acción inválida"}, status_code=400)
     return await vm_proxy(f"/v1/vms/{domain}", payload)
 
@@ -320,7 +342,7 @@ async def vm_console(websocket: WebSocket, domain: UUID):
                 async for chunk in upstream:
                     await websocket.send_bytes(chunk)
 
-            tasks = [asyncio.create_task(outbound()), asyncio.create_task(inbound())]
+            tasks = [asyncio.create_task(outbound()), asyncio.create_task(inbound()), asyncio.create_task(watch_session(websocket))]
             try:
                 await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             finally:
@@ -377,11 +399,36 @@ async def terminal(websocket: WebSocket):
                 async for data in collector:
                     await websocket.send_text(data)
 
-            tasks = [asyncio.create_task(browser_to_collector()), asyncio.create_task(collector_to_browser())]
-            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-            for task in pending:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            tasks = [asyncio.create_task(browser_to_collector()), asyncio.create_task(collector_to_browser()),
+                     asyncio.create_task(watch_session(websocket))]
+            try:
+                await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
     except Exception:
         with suppress(RuntimeError):
             await websocket.close(code=1011)
+
+
+@app.get('/archivos', response_class=HTMLResponse)
+def files_page(request: Request):
+    return templates.TemplateResponse(request=request, name='files.html', context=page_context(request, 'files'))
+
+
+@app.post('/api/files')
+async def files(request: Request):
+    if request.headers.get('X-SHC-Action') != 'confirm':
+        return JSONResponse({'detail': 'Origen de la acción inválido'}, status_code=403)
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        return JSONResponse({'detail': 'Solicitud inválida'}, status_code=400)
+    response = await vm_proxy('/v1/files', payload)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.get("/api/vms/{domain}/guest-ports")
+async def vm_guest_ports(domain: UUID):
+    return await vm_proxy(f"/v1/vms/{domain}/guest-ports")

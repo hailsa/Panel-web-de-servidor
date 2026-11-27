@@ -5,6 +5,9 @@ function statusClass(state) { return ['active', 'running', 'up'].includes(String
 
 function renderStatus(data) {
   const snapshot = data;
+  $('cpu-power').textContent = Number.isFinite(data.cpu_watts) ? data.cpu_watts.toFixed(1) + ' W' : 'No disponible';
+  const ports = [...new Map(data.ports.map(port => [port.protocol + ':' + port.port + ':' + port.service, port])).values()];
+  $('host-ports').innerHTML = ports.map(port => row(esc(port.protocol.toUpperCase()) + ' ' + port.port, port.service || port.process || 'Sin identificar')).join('') || row('Puertos', 'Sin datos');
   const systemTemp = snapshot.temperatures.find(item => /acpi|system|motherboard|temp1/i.test(`${item.source} ${item.label}`));
   const voltage = data.voltages[0];
   $('status-cpu-temp').textContent = temperature(snapshot.cpu.temperature_c);
@@ -15,7 +18,7 @@ function renderStatus(data) {
 
   $('physical-disks').innerHTML = data.physical_disks.map(disk => `<div class="disk-detail">
     <div><strong>${esc(disk.path)} · ${esc(disk.model)}</strong><small>${size(disk.size)} · ${disk.rotational ? 'HDD' : 'SSD'} · ${esc(disk.transport)} · Serie ${esc(disk.serial)}</small></div>
-    <div><span class="badge ${disk.state === 'running' ? 'online-badge' : 'neutral'}">${esc(disk.state)}</span><small>SMART: ${esc(disk.smart.available ? 'Disponible' : disk.smart.reason)}</small></div>
+    <div><span class="badge ${disk.state === 'running' ? 'online-badge' : 'neutral'}">${esc(disk.state)}</span><small>SMART: ${esc(disk.smart.available ? disk.smart.passed === false ? 'Fallo detectado' : disk.smart.warnings?.length ? 'Con alertas' : disk.smart.passed === true ? 'Correcto' : 'Salud no informada' : disk.smart.reason)}</small><small>${esc([disk.smart.hours == null ? null : disk.smart.hours + ' h', disk.smart.cycles == null ? null : disk.smart.cycles + ' encendidos', disk.smart.temperature == null ? null : disk.smart.temperature + ' °C', disk.smart.wear_percent == null ? null : disk.smart.wear_percent + '% usado', ...(disk.smart.warnings || [])].filter(Boolean).join(' · '))}</small></div>
   </div>`).join('') || row('Discos físicos', 'No disponibles', 'muted');
 
   const raid = snapshot.raid;
@@ -28,12 +31,15 @@ function renderStatus(data) {
     || row('Sensores', 'No disponibles', 'muted');
 
   const hardware = data.hardware;
+  $('hardware-pci').innerHTML = (hardware.pci_devices || []).map(device => `<li>${esc(device)}</li>`).join('') || '<li>No disponibles</li>';
   $('hardware-detail').innerHTML = `<dt>Modelo</dt><dd>${esc(hardware.system_vendor)} ${esc(hardware.system_model)}</dd>
     <dt>Placa base</dt><dd>${esc(hardware.board_vendor)} ${esc(hardware.board_name)} ${esc(hardware.board_version)}</dd>
     <dt>BIOS</dt><dd>${esc(hardware.bios_vendor)} ${esc(hardware.bios_version)} · ${esc(hardware.bios_date)}</dd>
     <dt>Procesador</dt><dd>${esc(snapshot.system.cpu_model)}</dd>
-    <dt>Núcleos lógicos</dt><dd>${snapshot.system.cpu_count}</dd>
+    <dt>Núcleos / hilos</dt><dd>${snapshot.system.cpu_physical_cores ?? "—"} / ${snapshot.system.cpu_count}</dd>
     <dt>Memoria</dt><dd>${size(snapshot.memory.total)}</dd>
+    ${(hardware.memory_modules || []).map(module => `<dt>${esc(module.Locator || 'Ranura de memoria')}</dt><dd>${esc(Object.entries(module).filter(([key, value]) => key !== 'Locator' && value !== 'Unknown').map(([, value]) => value).join(' · '))}</dd>`).join('')}
+    <dt>Arranque</dt><dd>${esc(snapshot.system.boot_mode)}</dd>
     <dt>Sistema</dt><dd>${esc(snapshot.system.os)} · ${esc(snapshot.system.architecture)}</dd>`;
   $('service-detail').innerHTML = data.services.map(service => row(service.name, service.state, statusClass(service.state))).join('');
   $('docker-detail').innerHTML = snapshot.docker.available

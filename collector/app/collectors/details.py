@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from .telemetry import inventory
 from pathlib import Path
 from typing import Any
 
@@ -41,7 +42,7 @@ def _mask_serial(serial: str | None) -> str:
 def collect_hardware(cache_seconds: int = 300) -> dict[str, Any]:
     global _hardware_cache
     now = time.monotonic()
-    if now - _hardware_cache[0] < cache_seconds:
+    if _hardware_cache[1] and now - _hardware_cache[0] < cache_seconds:
         return _hardware_cache[1]
     hardware = {
         "system_vendor": _text("/sys/class/dmi/id/sys_vendor") or "No disponible",
@@ -53,6 +54,8 @@ def collect_hardware(cache_seconds: int = 300) -> dict[str, Any]:
         "bios_version": _text("/sys/class/dmi/id/bios_version") or "No disponible",
         "bios_date": _text("/sys/class/dmi/id/bios_date") or "No disponible",
     }
+    ok, pci = _run(["lspci", "-nn"], timeout=2)
+    hardware["pci_devices"] = pci.splitlines()[:64] if ok else []
     _hardware_cache = (now, hardware)
     return hardware
 
@@ -60,7 +63,7 @@ def collect_hardware(cache_seconds: int = 300) -> dict[str, Any]:
 def collect_physical_disks(cache_seconds: int = 30) -> list[dict[str, Any]]:
     global _disks_cache
     now = time.monotonic()
-    if now - _disks_cache[0] < cache_seconds:
+    if _disks_cache[0] and now - _disks_cache[0] < cache_seconds:
         return _disks_cache[1]
     ok, output = _run(
         ["lsblk", "-J", "-b", "-d", "-o", "NAME,PATH,MODEL,SERIAL,SIZE,TYPE,ROTA,TRAN,STATE"],
@@ -72,6 +75,7 @@ def collect_physical_disks(cache_seconds: int = 30) -> list[dict[str, Any]]:
         devices = json.loads(output).get("blockdevices", [])
     except json.JSONDecodeError:
         return _disks_cache[1]
+    smart = inventory("smart", int(now // 120)) or {}
     rows: list[dict[str, Any]] = []
     for disk in devices:
         if disk.get("type") != "disk":
@@ -86,7 +90,7 @@ def collect_physical_disks(cache_seconds: int = 30) -> list[dict[str, Any]]:
                 "rotational": bool(disk.get("rota")),
                 "transport": disk.get("tran") or "No disponible",
                 "state": disk.get("state") or "No disponible",
-                "smart": {"available": False, "reason": "smartmontools no está instalado"},
+                "smart": smart.get(disk.get("name"), {"available": False, "reason": "Sin lectura SMART disponible"}),
             }
         )
     _disks_cache = (now, rows)

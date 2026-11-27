@@ -118,12 +118,16 @@ function render(data) {
   $('sensors').innerHTML = data.temperatures.slice(0, 7).map(item => row(item.label, `${item.current_c.toFixed(1)} °C`, 'status')).join('') + data.fans.slice(0, 2).map(item => row(item.label, `${item.rpm} RPM`, 'status')).join('') || row('Sensores', 'No disponibles', 'muted');
 }
 
+let refreshing = false;
 async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
   try {
-    const response = await fetch('/api/snapshot', {cache: 'no-store'});
+    const response = await fetch('/api/snapshot', {cache: 'no-store', signal: AbortSignal.timeout(8000)});
     if (!response.ok) throw new Error('Collector no disponible');
     render(await response.json());
   } catch (_) { setConnection(false); showError(true); }
+  finally { refreshing = false; }
 }
 
 window.addEventListener('resize', drawChart);

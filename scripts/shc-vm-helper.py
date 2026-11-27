@@ -37,6 +37,22 @@ def fields(text):
     return dict(line.split(":", 1) for line in text.splitlines() if ":" in line)
 
 
+def guest_interfaces(root, domain, state, include_agent=False):
+    from shc_vm_network import parse_addresses, interface_details
+    addresses = []
+    interfaces = []
+    agent_connected = root.find("devices/channel/target[@name='org.qemu.guest_agent.0'][@state='connected']") is not None
+    if state in {'running', 'paused'}:
+        for source_type in ((['agent'] if agent_connected and state == 'running' else []) + ['lease', 'arp']):
+            output = optional('domifaddr', '--domain', domain, '--full', '--source', source_type)
+            addresses.extend(parse_addresses(output, source_type))
+        from shc_vm_discovery import discover_addresses
+        addresses.extend(discover_addresses(root, domain, addresses, sample=include_agent))
+    for interface in root.findall("devices/interface"):
+        interfaces.append(interface_details(interface, addresses))
+    return interfaces
+
+
 def inventory(domain, detail=False):
     root = xml_for(domain)
     state = virsh("domstate", "--domain", domain).strip()
@@ -47,6 +63,9 @@ def inventory(domain, detail=False):
               "autostart": info.get("Autostart") == "enable",
               "persistent": info.get("Persistent") == "yes"}
     if not detail:
+        networks = guest_interfaces(root, domain, state)
+        result['addresses'] = sorted({item['address'].split('/')[0] for interface in networks
+                                     for item in interface['addresses']})
         return result
     result.update({"machine": root.find("os/type").get("machine", ""),
                    "architecture": root.find("os/type").get("arch", ""),
@@ -81,17 +100,7 @@ def inventory(domain, detail=False):
             value = capacity.get(key, "").strip()
             storage[key.lower()] = int(value) if value.isdigit() else None
         result["disks"].append(storage)
-    from shc_vm_network import parse_addresses, interface_details
-    addresses = []
-    agent_configured = any(node.get('name') == 'org.qemu.guest_agent.0' for node in root.findall('devices/channel/target'))
-    if state in {'running', 'paused'}:
-        for source_type in ((['agent'] if agent_configured and state == 'running' else []) + ['lease', 'arp']):
-            output = optional('domifaddr', '--domain', domain, '--full', '--source', source_type)
-            addresses.extend(parse_addresses(output, source_type))
-        from shc_vm_discovery import discover_addresses
-        addresses.extend(discover_addresses(root, domain, addresses))
-    for interface in root.findall("devices/interface"):
-        result['interfaces'].append(interface_details(interface, addresses))
+    result["interfaces"] = guest_interfaces(root, domain, state, include_agent=True)
     for name in optional("snapshot-list", "--domain", domain, "--name").splitlines():
         if name:
             result["snapshots"].append({"name": name})
@@ -106,14 +115,14 @@ def inventory(domain, detail=False):
     result["vnc"] = root.find("devices/graphics[@type='vnc']") is not None
     stats = optional("domstats", domain, "--cpu-total", "--balloon")
     result["stats"] = dict(line.strip().split("=", 1) for line in stats.splitlines() if "=" in line)
-    if result["agent_configured"] and state == "running":
+    if state == "running" and root.find("devices/channel/target[@name='org.qemu.guest_agent.0'][@state='connected']") is not None:
         result["guest_services_reason"] = "El agente está configurado. La consulta de servicios requiere guest-exec habilitado."
         # Only a fixed read-only query; no command supplied by the browser is accepted.
         command = {"execute": "guest-exec", "arguments": {"path": "powershell.exe", "arg": ["-NoProfile", "-NonInteractive", "-Command", "Get-Service | Where-Object {$_.Status -eq 'Running'} | Select-Object Name,DisplayName | ConvertTo-Json -Compress"], "capture-output": True}}
         try:
             import base64
             import time
-            response = json.loads(virsh("qemu-agent-command", "--domain", domain, json.dumps(command)))
+            response = json.loads(virsh("qemu-agent-command", "--domain", domain, json.dumps(command), timeout=1))
             pid = response["return"]["pid"]
             for _ in range(8):
                 time.sleep(0.25)
@@ -217,6 +226,11 @@ def handle(request):
         return {"available": True, "machines": [inventory(item) for item in virsh("list", "--all", "--uuid").splitlines() if item]}
     domain = str(uuid.UUID(request.get("id", "")))
     root = xml_for(domain)
+    if action == 'guest-ports':
+        if optional('domstate', '--domain', domain) != 'running':
+            return {'available': False, 'reason': 'La máquina virtual debe estar encendida.'}
+        from shc_vm_ports import ports
+        return ports(virsh, domain)
     if action == "detail":
         return inventory(domain, True)
     if action == "console":

@@ -13,6 +13,10 @@
     <article class="card"><h2>Integración del invitado</h2><div id="vm-devices"></div><div class="vm-section-actions"><button data-config="agent">Agregar canal Guest Agent</button><button data-config="watchdog">Agregar watchdog</button><button data-config="vsock">Agregar vsock</button></div><p class="muted vm-note">Los cambios de dispositivos requieren la VM apagada. Windows puede necesitar controladores VirtIO y servicios dentro del invitado. El watchdog sólo funciona si el invitado lo activa.</p></article>
     <article class="card"><div class="vm-card-title"><h2>Instantáneas</h2><button data-config="snapshot-create">Crear instantánea</button></div><div id="vm-snapshots"></div><p class="muted vm-note">Instantáneas internas de discos qcow2 con la VM apagada; no incluyen RAM y no sustituyen un backup.</p></article>
     <article class="card"><div class="vm-card-title"><h2>Directorios compartidos</h2><button data-config="share">Agregar directorio</button></div><div id="vm-shares"></div><p class="muted vm-note">Virtiofs comparte directorios previamente preparados en /srv/shc-shares. El invitado necesita soporte y controladores compatibles.</p></article>
+    <article class="card"><h2>Puertos del invitado</h2>
+      <button id="vm-guest-ports-refresh" type="button">Consultar puertos</button>
+      <div id="vm-guest-ports" aria-live="polite"></div>
+    </article>
     <article class="card"><h2>Servicios del invitado</h2><div id="vm-guest-services"></div></article>
   </div>
 </section>

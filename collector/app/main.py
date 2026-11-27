@@ -24,12 +24,21 @@ from .auth import collector_token
 from .collectors.details import collect_hardware, collect_physical_disks, collect_services, collect_voltages
 from .collectors.snapshot import collect_snapshot
 from .collectors.users import collect_users
+from .collectors.sessions import active_sessions
+from .collectors.telemetry import inventory, power as cpu_power
 from .vm_management import vm_request
 from . import docker_management
 from .journal import journal_request
 from .updates import updates_request
 
 app = FastAPI(title="SHC Collector", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+@app.on_event("startup")
+async def warm_disk_inventory():
+    from threading import Thread
+    Thread(target=collect_physical_disks, daemon=True).start()
+
 
 
 @app.get('/v1/updates', dependencies=[Depends(require_token)])
@@ -189,6 +198,7 @@ def users() -> dict:
     return {
         "available": True,
         "users": collect_users(),
+        "sessions": active_sessions(),
         "system": {
             "hostname": platform.node(),
             "uptime_seconds": max(0, int(time.time() - psutil.boot_time())),
@@ -199,7 +209,8 @@ def users() -> dict:
 @app.get("/v1/server-status", dependencies=[Depends(require_token)])
 def server_status() -> dict:
     data = collect_snapshot()
-    data["hardware"] = collect_hardware()
+    data["hardware"] = {**collect_hardware(), "memory_modules": inventory("hardware", int(time.monotonic() // 300)) or []}
+    data["cpu_watts"] = cpu_power()
     data["physical_disks"] = collect_physical_disks()
     data["voltages"] = collect_voltages()
     data["services"] = collect_services()
@@ -288,3 +299,23 @@ async def terminal(websocket: WebSocket) -> None:
             await asyncio.to_thread(process.wait)
         with suppress(RuntimeError):
             await websocket.close()
+
+
+@app.post('/v1/files', dependencies=[Depends(require_token)])
+def files(payload: dict):
+    from .collectors.files import operate
+    try:
+        return operate(payload)
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
+    except FileExistsError as error:
+        raise HTTPException(409, 'Ya existe una entrada con ese nombre') from error
+    except FileNotFoundError as error:
+        raise HTTPException(404, 'No se encontró la ruta solicitada') from error
+    except OSError as error:
+        raise HTTPException(409, 'La operación no se pudo completar. Solo se pueden borrar carpetas vacías y mover dentro del mismo almacenamiento.') from error
+
+
+@app.get("/v1/vms/{domain}/guest-ports", dependencies=[Depends(require_token)])
+def vm_guest_ports(domain: str):
+    return vm_request({"action": "guest-ports", "id": domain})

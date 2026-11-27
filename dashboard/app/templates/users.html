@@ -3,6 +3,10 @@
 {% block content %}
 <section class="content">
   <div class="heading heading-with-icon"><span class="heading-icon"><svg><use href="/static/img/icons.svg#users"></use></svg></span><div><h1>Usuarios</h1><p>Cuentas locales del servidor, grupos y nivel de acceso</p></div></div>
+  <article class="card"><h2>Sesiones activas</h2>
+    <div class="table-wrap"><table><thead><tr><th>Usuario</th><th>Servicio / terminal</th><th>Origen</th><th>Inicio / estado</th><th>Última conexión finalizada</th></tr></thead><tbody id="active-sessions"></tbody></table></div>
+    <p class="muted">Se muestra la IP que observa el servidor. SSH no informa el modelo del dispositivo ni su ubicación física, y una IP privada no revela la IP pública del cliente.</p>
+  </article>
   <div id="error" class="error hidden"></div>
   <div class="toolbar card">
     <label class="search"><span>⌕</span><input id="user-search" type="search" placeholder="Buscar usuario, grupo o rol…" autocomplete="off"></label>
@@ -23,4 +27,4 @@
   </article>
 </section>
 {% endblock %}
-{% block scripts %}<script src="/static/js/users.js"></script>{% endblock %}
+{% block scripts %}<script src="/static/js/users.js?v={{ version }}"></script>{% endblock %}

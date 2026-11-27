@@ -15,6 +15,7 @@ from typing import Iterator
 import bcrypt
 
 DB_PATH = Path(os.getenv("SHC_AUTH_DB", "/var/lib/shc-monitor/auth/auth.sqlite3"))
+IDLE_SECONDS = 600
 SESSION_SECONDS = 12 * 60 * 60
 
 
@@ -39,6 +40,8 @@ def init_db() -> None:
     with transaction() as db:
         db.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1)")
         db.execute("CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, username TEXT NOT NULL, expires_at INTEGER NOT NULL)")
+        if "last_activity" not in {row[1] for row in db.execute("PRAGMA table_info(sessions)")}:
+            db.execute("ALTER TABLE sessions ADD COLUMN last_activity INTEGER NOT NULL DEFAULT 0")
         db.execute("CREATE INDEX IF NOT EXISTS sessions_expires ON sessions(expires_at)")
 
 
@@ -82,15 +85,23 @@ def authenticate(username: str, password: str) -> str | None:
         return None
     token = secrets.token_urlsafe(32)
     with transaction() as db:
-        db.execute("INSERT INTO sessions(token_hash,username,expires_at) VALUES(?,?,?)", (hashlib.sha256(token.encode()).hexdigest(), username, int(time.time()) + SESSION_SECONDS))
+        now = int(time.time())
+        db.execute("DELETE FROM sessions WHERE expires_at<=? OR last_activity<=?", (now, now - IDLE_SECONDS))
+        db.execute("INSERT INTO sessions(token_hash,username,expires_at,last_activity) VALUES(?,?,?,?)", (hashlib.sha256(token.encode()).hexdigest(), username, now + SESSION_SECONDS, now))
     return token
 
 
-def session_user(token: str | None) -> str | None:
+def session_user(token: str | None, *, touch: bool = False) -> str | None:
     if not token:
         return None
     with transaction() as db:
-        row = db.execute("SELECT username FROM sessions WHERE token_hash=? AND expires_at>?", (hashlib.sha256(token.encode()).hexdigest(), int(time.time()))).fetchone()
+        now = int(time.time())
+        params = (hashlib.sha256(token.encode()).hexdigest(), now, now - IDLE_SECONDS)
+        where = "token_hash=? AND expires_at>? AND last_activity>?"
+        if touch:
+            row = db.execute(f"UPDATE sessions SET last_activity=? WHERE {where} RETURNING username", (now, *params)).fetchone()
+        else:
+            row = db.execute(f"SELECT username FROM sessions WHERE {where}", params).fetchone()
     return row["username"] if row else None
 
 
